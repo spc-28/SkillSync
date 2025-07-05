@@ -1,3 +1,4 @@
+import { AuthGuard } from "../../components/AuthGuard";
 import Header from "../../components/Header";
 
 export default function Layout({
@@ -7,8 +8,10 @@ export default function Layout({
 }>) {
     return (
         <>
-            <Header/>
-            {children}
+            <AuthGuard>
+                <Header />
+                {children}
+            </AuthGuard>
         </>
     );
 }
