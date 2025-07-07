@@ -4,6 +4,7 @@ import axios from "axios";
 import SignUpForm from "../../../components/SignUpForm";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { useUserStore } from "../../../zustand/userStore";
 
 export default function Page() {
   const router = useRouter();
@@ -14,6 +15,7 @@ export default function Page() {
     password: '',
     institute: ''
   });
+  const { setUserId } = useUserStore();
   const [loading, setLoading] = useState(false);
 
   const colleges = [
@@ -33,6 +35,8 @@ export default function Page() {
       const response = await axios.post(`${process.env.NEXT_PUBLIC_DEV_API_URL + "/auth/signup"}`, formData);
       const data = response.data;
       localStorage.setItem('token', data.token);
+      setUserId(data.user.uid);
+      localStorage.setItem('userId', data.user.uid)
       toast.success(data.message);
       router.push('/discover');
     } catch (err: any) {

@@ -1,41 +1,79 @@
 'use client'
 import type { Message, MessagesMap } from '../../../../types/chatTypes';
 import { useChatStore } from "../../../../zustand/chatStore";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ImageIcon, Send } from "lucide-react";
 import { useImageChatStore } from "../../../../zustand/imageChatStore";
 import { useParams } from 'next/navigation';
-
-  const getRandomResponse = () => {
-    const responses = [
-      "Thanks for the update! I'll review this shortly.",
-      "Looks good to me. Let's proceed with this approach.",
-      "I have a few questions about the implementation. Can we discuss?",
-      "Great work on this feature! The UI looks clean.",
-      "I'll need to test this on my end. Give me a few minutes.",
-      "This aligns well with our project goals. Nice job!",
-      "Can you share the latest version of the design file?",
-      "I'm working on the backend integration. Should be ready soon."
-    ];
-    return responses[Math.floor(Math.random() * responses.length)];
-};
+import { useSocketStore } from '../../../../zustand/socketStore';
+import { useUserStore } from '../../../../zustand/userStore';
 
 export default function Page() {
     const { id } = useParams();
     const [message, setMessage] = useState<string>('');
     const fileInputRef = useRef<HTMLInputElement | null>(null);
-    const {imagePreview, setImagePreview, imageFile, setImageFile} = useImageChatStore();
+    const { imagePreview, setImagePreview, imageFile, setImageFile } = useImageChatStore();
     const { selectedUser, messages, chatEndRef, setMessages } = useChatStore();
+    const { ws } = useSocketStore();
+    const { userId } = useUserStore();
 
-    const currentMessages: Message[] = selectedUser?.id==id ? messages[id!] || [] : [];
+    useEffect(() => {
+        if (!ws) return;
+        const handler = (msg: { from: string; message: string; timeStamp?: { _seconds: number; _nanoseconds: number } }) => {
+            if (!selectedUser || msg.from !== selectedUser.id) return;
+            const response: Message = {
+                id: Date.now() + 1,
+                text: msg.message,
+                sender: msg.from,
+                timestamp: msg.timeStamp && msg.timeStamp._seconds
+                    ? new Date(msg.timeStamp._seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                type: 'text',
+            };
+            setMessages((prev: MessagesMap) => {
+                const updated = {
+                    ...prev,
+                    [selectedUser.id]: [
+                        ...((prev[selectedUser.id] as Message[] ?? [])),
+                        response
+                    ]
+                };
+                // Sort messages by timeStamp if available
+                const arr = updated[selectedUser.id];
+                if (Array.isArray(arr)) {
+                    updated[selectedUser.id] = arr.slice().sort((a, b) => {
+                        const aSec = (a as any).timeStamp?._seconds || 0;
+                        const bSec = (b as any).timeStamp?._seconds || 0;
+                        return aSec - bSec;
+                    });
+                }
+                return updated;
+            });
+        };
+        ws.on('receive_chat', handler);
+        return () => {
+            ws.off('receive_chat', handler);
+        };
+    }, [ws, selectedUser, setMessages]);
 
-     const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const currentMessages: Message[] = selectedUser?.id == id ? messages[id!] || [] : [];
+
+    const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files && event.target.files[0];
         if (file) {
-          setImageFile(file);
-          setImagePreview(URL.createObjectURL(file));
+            setImageFile(file);
+            setImagePreview(URL.createObjectURL(file));
         }
-      };
+    };
+
+    const sendChatMessage = (content: string) => {
+        if (!ws || !selectedUser) return;
+        ws.emit('chat', {
+            senderId: userId,
+            receiverId: selectedUser.id,
+            message: content,
+        });
+    };
 
     const handleSendMessage = () => {
         if (!selectedUser) return;
@@ -43,7 +81,7 @@ export default function Page() {
         if (imageFile && imagePreview) {
             const imageMessage: Message = {
                 id: Date.now(),
-                text: imagePreview, // store preview URL as text for now
+                text: imagePreview,
                 sender: 'me',
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 type: 'image',
@@ -58,23 +96,7 @@ export default function Page() {
             }));
             setImagePreview(null);
             setImageFile(null);
-
-            setTimeout(() => {
-                const response: Message = {
-                    id: Date.now() + 1,
-                    text: getRandomResponse() ?? '',
-                    sender: selectedUser.id,
-                    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    type: 'text',
-                };
-                setMessages((prev: MessagesMap) => ({
-                    ...prev,
-                    [selectedUser.id]: [
-                        ...((prev[selectedUser.id] as Message[] ?? [])),
-                        response
-                    ],
-                }));
-            }, 1000 + Math.random() * 2000);
+            // Optionally, you can emit image messages here if supported
             return;
         }
         // Otherwise, send text message
@@ -93,24 +115,8 @@ export default function Page() {
                 newMessage
             ]
         }));
+        sendChatMessage(message);
         setMessage('');
-
-        setTimeout(() => {
-            const response: Message = {
-                id: Date.now() + 1,
-                text: getRandomResponse() ?? '',
-                sender: selectedUser.id,
-                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                type: 'text',
-            };
-            setMessages((prev: MessagesMap) => ({
-                ...prev,
-                [selectedUser.id]: [
-                    ...((prev[selectedUser.id] as Message[] ?? [])),
-                    response
-                ],
-            }));
-        }, 1000 + Math.random() * 2000);
     };
     return (
         <div className='flex-1 flex flex-col'>
@@ -120,7 +126,7 @@ export default function Page() {
                     <div className="flex items-center space-x-3">
                         <div className="relative">
                             <div className="w-10 h-10 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center text-white font-semibold">
-                                {selectedUser?.avatar}
+                                {selectedUser?.name[0]}
                             </div>
                         </div>
                         <div>

@@ -1,39 +1,44 @@
 'use client'
 import { Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import axios from "axios";
 import { useChatStore } from "../zustand/chatStore";
+import type { User as StoreUser } from "../types/chatTypes";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
-type User = {
-    id: string;
-    name: string;
-    role: string;
-    avatar: string;
-    status: string;
-    lastSeen: string;
+
+type ApiUser = {
+    fullName: string;
+    uid: string;
 };
+
 
 export default function ChatUsers() {
     const [searchTerm, setSearchTerm] = useState<string>('');
-    const { selectedUser, setSelectedUser, messages, setMessages, chatEndRef } = useChatStore();
-
+    const [users, setUsers] = useState<StoreUser[]>([]);
+    const { selectedUser, setSelectedUser, messages, chatEndRef } = useChatStore();
     const router = useRouter();
 
-    const users: User[] = [
-        { id: 'sarah', name: 'Sarah Chen', role: 'Project Lead', avatar: '👩‍💻', status: 'online', lastSeen: 'now' },
-        { id: 'alex', name: 'Alex Rodriguez', role: 'Full Stack Developer', avatar: '👨‍💻', status: 'online', lastSeen: 'now' },
-        { id: 'emily', name: 'Emily Johnson', role: 'UI/UX Designer', avatar: '👩‍🎨', status: 'away', lastSeen: '5 min ago' },
-        { id: 'david', name: 'David Kim', role: 'ML Engineer', avatar: '👨‍🔬', status: 'online', lastSeen: 'now' },
-        { id: 'lisa', name: 'Lisa Wang', role: 'Data Scientist', avatar: '👩‍🔬', status: 'offline', lastSeen: '2 hours ago' },
-        { id: 'mike', name: 'Mike Thompson', role: 'DevOps Engineer', avatar: '👨‍🔧', status: 'away', lastSeen: '15 min ago' },
-        { id: 'anna', name: 'Anna Petrov', role: 'QA Tester', avatar: '👩‍💼', status: 'online', lastSeen: 'now' },
-        { id: 'james', name: 'James Wilson', role: 'Backend Developer', avatar: '👨‍💻', status: 'offline', lastSeen: '1 hour ago' }
-        
-    ];
+    useEffect(() => {
+        const fetchUsers = async () => {
+            try {
+                const response = await axios.get(`${process.env.NEXT_PUBLIC_DEV_API_URL}/chat/users`);
+
+                const mappedUsers: StoreUser[] = response.data.map((u: ApiUser) => ({
+                    id: u.uid,
+                    name: u.fullName,
+                }));
+                setUsers(mappedUsers);
+            } catch (error) {
+                toast.error("Failed opening message")
+            }
+        };
+        fetchUsers();
+    }, []);
 
     const filteredUsers = users.filter(user =>
-        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.role.toLowerCase().includes(searchTerm.toLowerCase())
+        user.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     useEffect(() => {
@@ -44,12 +49,6 @@ export default function ChatUsers() {
 
     return (
         <div className="w-[26rem] bg-white border-r border-gray-200 flex flex-col">
-            {/* Header */}
-            {/* <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
-          <h2 className="text-xl font-bold mb-2">Team Chat</h2>
-          <p className="text-sm text-indigo-100">500+ Active Members</p>
-        </div> */}
-
             {/* Search */}
             <div className="p-4 border-gray-200">
                 <div className="relative">
@@ -73,28 +72,19 @@ export default function ChatUsers() {
                             setSelectedUser(user);
                             router.push(`/chats/${user.id}`)
                         }}
-                        className={`p-4 border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${selectedUser && selectedUser.id === user.id ? 'bg-indigo-50 border-l-4 border-l-indigo-500' : ''
-                            }`}
+                        className={`p-4 border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${selectedUser && selectedUser.id === user.id ? 'bg-indigo-50 border-l-4 border-l-indigo-500' : ''}`}
                     >
                         <div className="flex items-center space-x-3 py-2">
-                            <div className="relative">
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center text-white font-semibold">
-                                    {user.avatar}
-                                </div>
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center text-white font-semibold">
+                                {user.name.charAt(0)}
                             </div>
                             <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between">
-                                    <h3 className="font-semibold text-gray-900 truncate">{user.name}</h3>
-                                    {user.status === 'online' && (
-                                        <span className="text-xs text-green-600 font-medium">Online</span>
-                                    )}
-                                </div>
-                                <p className="text-xs text-gray-400">{user.lastSeen}</p>
+                                <h3 className="font-semibold text-gray-900 truncate">{user.name}</h3>
                             </div>
                         </div>
                     </div>
                 ))}
             </div>
         </div>
-    )
+    );
 }

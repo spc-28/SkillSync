@@ -1,7 +1,9 @@
 'use client'
 import React, { useState, useRef, useEffect, KeyboardEvent, MouseEvent, ChangeEvent } from 'react';
 import { Send, Bot, Users, Plus, Image, X, ArrowLeft, Sparkles, CheckSquare } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
+import { useSocketStore } from '../../../../zustand/socketStore';
+import { useUserStore } from '../../../../zustand/userStore';
 
 type UploadedImage = {
   file: File;
@@ -40,8 +42,20 @@ type TeamMember = {
 type ChatMode = 'normal' | 'ai' | 'task';
 
 const ChatInterface: React.FC = () => {
+  const { id } = useParams();
   const router = useRouter();
+  const [projectName] = useState<string>(()=>{
+    if(id == '1'){
+      return "Phoenix Development"
+    }
+    else {
+      return "Drone Dev"
+    }
+  
+  });
   const [leftPanelWidth, setLeftPanelWidth] = useState<number>(50);
+  const { ws } = useSocketStore()
+  const { userId } = useUserStore();
   const [aiChats, setAiChats] = useState<AiChat[]>([
     {
       id: 1,
@@ -56,6 +70,50 @@ const ChatInterface: React.FC = () => {
       ],
     },
   ]);
+
+  useEffect(() => {
+    if (!ws) return;
+
+    ws.on('userJoined', (msg) => {
+      console.log(msg);
+    });
+
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const formatted = `${hours}:${minutes}`;
+
+    ws.on('newMessage', (data: { sender: string; message: string; senderName: string }) => {
+
+      if (data.sender !== userId) {
+        setTeamMessages((prev) => [
+          ...prev,
+          {
+            id: prev.length + 1,
+            user: data.senderName,
+            initials: data.sender.slice(0, 2).toUpperCase(),
+            text: data.message,
+            timestamp: formatted,
+            isCurrentUser: false,
+            messageType: 'normal',
+          },
+        ]);
+      }
+    });
+
+    if (userId) {
+      ws.emit('joinRoom', {
+        room: projectName.split(' ').join('_'),
+        userId: userId,
+      });
+    }
+
+    return () => {
+      ws.off('userJoined');
+      ws.off('newMessage');
+    };
+  }, [ws, userId]);
+
   const [currentAiChatId, setCurrentAiChatId] = useState<number>(1);
   const [teamMessages, setTeamMessages] = useState<TeamMessage[]>([
     {
@@ -258,6 +316,16 @@ const ChatInterface: React.FC = () => {
         minute: "2-digit",
       });
 
+      // Send message via socket
+      if (ws && userId && chatMode=="normal") {
+        ws.emit('sendMessage', {
+          sender: userId,
+          message: teamInput,
+          room: projectName.split(' ').join('_'),
+          timestamp: new Date().toISOString()
+        });
+      }
+
       if (chatMode === 'ai') {
         // Send to AI chat
         const currentMessages = getCurrentAiMessages();
@@ -411,7 +479,7 @@ const ChatInterface: React.FC = () => {
               <span className="text-sm font-medium">Back</span>
             </button>
             <div className="h-6 w-px bg-gray-300"></div>
-            <h1 className="text-xl font-semibold text-gray-900">Project Dashboard</h1>
+            <h1 className="text-xl font-semibold text-gray-900">{projectName}</h1>
           </div>
           <div className="text-sm text-gray-500">
             Collaborative Workspace
@@ -437,13 +505,13 @@ const ChatInterface: React.FC = () => {
               </div>
               <div>
                 <h2 className="font-semibold text-gray-900">AI Assistant</h2>
-                <p className="text-sm text-gray-500">Always here to help</p>
+                <p className="text-sm text-gray-500">Helping with {projectName}</p>
               </div>
             </div>
           </div>
 
           {/* Chat Tabs */}
-          <div className="border-b border-gray-100">
+          {/* <div className="border-b border-gray-100">
             <div className="flex items-center">
               {aiChats.map((chat) => (
                 <button
@@ -466,7 +534,7 @@ const ChatInterface: React.FC = () => {
                 <Plus className="w-4 h-4 text-gray-500" />
               </button>
             </div>
-          </div>
+          </div> */}
 
           {/* AI Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -521,7 +589,7 @@ const ChatInterface: React.FC = () => {
               </div>
               <div>
                 <h2 className="font-semibold text-gray-900">Team Chat</h2>
-                <p className="text-sm text-gray-500">3 online</p>
+                <p className="text-sm text-gray-500">{projectName} • 3 online</p>
               </div>
             </div>
           </div>
@@ -557,7 +625,7 @@ const ChatInterface: React.FC = () => {
                 {!message.isCurrentUser && (
                   <div className="flex-shrink-0 mr-3">
                     <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-medium text-sm">
-                      {message.initials}
+                      {message.user[0]}
                     </div>
                   </div>
                 )}

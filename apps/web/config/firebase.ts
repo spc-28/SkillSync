@@ -2,6 +2,7 @@ import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { clientAuth } from "@repo/firebase-config"
 import { toast } from "sonner";
 import axios from "axios";
+import { useUserStore } from "../zustand/userStore";
 
 const provider = new GoogleAuthProvider();
 
@@ -17,7 +18,9 @@ export const signInWithGoogle = async () => {
         
       });
       
-      localStorage.setItem('token', await result.user.getIdToken())
+      localStorage.setItem('token', await result.user.getIdToken());
+      useUserStore.getState().setUserId(result.user.uid);
+      localStorage.setItem('userId', result.user.uid);
 
     } catch (error: any) {
       toast.error('Failed: ' + error.message)

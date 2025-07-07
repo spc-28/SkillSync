@@ -52,6 +52,9 @@ export class AuthService {
 			if (userDoc.exists) {
 				return {
 					message: 'User already created',
+					user: {
+						uid
+					}
 				};
 			}
 
