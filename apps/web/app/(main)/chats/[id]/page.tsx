@@ -7,15 +7,33 @@ import { useImageChatStore } from "../../../../zustand/imageChatStore";
 import { useParams } from 'next/navigation';
 import { useSocketStore } from '../../../../zustand/socketStore';
 import { useUserStore } from '../../../../zustand/userStore';
+import axios from 'axios';
+import { toast } from 'sonner';
 
 export default function Page() {
     const { id } = useParams();
     const [message, setMessage] = useState<string>('');
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const { imagePreview, setImagePreview, imageFile, setImageFile } = useImageChatStore();
-    const { selectedUser, messages, chatEndRef, setMessages } = useChatStore();
+    const { selectedUser, messages, chatEndRef, setMessages, setSelectedUser } = useChatStore();
     const { ws } = useSocketStore();
     const { userId } = useUserStore();
+
+    useEffect(()=> {
+        async function getUser() {
+            try {
+                const res = await axios.get(`${process.env.NEXT_PUBLIC_DEV_API_URL}/chat/user/${id}`)
+                setSelectedUser({
+                    id: String(id),
+                    name: res.data.fullName
+                })
+            }
+            catch(error: any) {
+                toast.error("Failed to get user")
+            }
+        }
+        getUser();
+    }, [])
 
     useEffect(() => {
         if (!ws) return;
@@ -42,8 +60,8 @@ export default function Page() {
                 const arr = updated[selectedUser.id];
                 if (Array.isArray(arr)) {
                     updated[selectedUser.id] = arr.slice().sort((a, b) => {
-                        const aSec = (a as any).timeStamp?._seconds || 0;
-                        const bSec = (b as any).timeStamp?._seconds || 0;
+                        const aSec = (a as any).timeStamp || 0;
+                        const bSec = (b as any).timeStamp|| 0;
                         return aSec - bSec;
                     });
                 }
@@ -72,6 +90,7 @@ export default function Page() {
             senderId: userId,
             receiverId: selectedUser.id,
             message: content,
+            timestamp: new Date().toISOString()
         });
     };
 

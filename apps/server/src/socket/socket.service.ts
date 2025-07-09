@@ -24,14 +24,14 @@ export class SocketService {
     }
 
     async create(createChatDto: CreateChatDto) {
-        const { senderId, receiverId, message } = createChatDto;
+        const { senderId, receiverId, message, timestamp } = createChatDto;
 
         try {
             const chat = await db.collection('chats').doc().set({
                 senderId,
                 receiverId,
                 message,
-                timeStamp: new Date()
+                timestamp
             })
             console.log(chat)
             return chat
@@ -41,4 +41,25 @@ export class SocketService {
             throw new BadRequestException("Failed to store chat")
         }
     }
+
+    async createRoomChat(data: { room: string; message: string; sender: string; timestamp: string }) {
+
+        const { room, message, sender, timestamp } = data;
+
+        try {
+            const chat = await db.collection('roomChats').doc().set({
+                sender,
+                room,
+                message,
+                timestamp,
+            })
+
+            return chat
+
+        }
+        catch (err: any) {
+            throw new BadRequestException("Failed to store chat")
+        }
+    }
+
 }

@@ -7,9 +7,12 @@ import { SocketModule } from './socket/socket.module';
 import { EventModule } from './event/event.module';
 import { GeminiService } from './utils/gemini/gemini.service';
 import { ProjectModule } from './project/project.module';
+import { WorkspaceModule } from './workspace/workspace.module';
+import { PostModule } from './post/post.module';
+import { ProfileModule } from './profile/profile.module';
 
 @Module({
-  imports: [AuthModule, ChatModule, SocketModule, EventModule, ProjectModule],
+  imports: [AuthModule, ChatModule, SocketModule, EventModule, ProjectModule, WorkspaceModule, PostModule, ProfileModule],
   controllers: [AppController],
   providers: [AppService, GeminiService],
 })

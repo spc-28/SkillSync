@@ -10,5 +10,8 @@ export class CreateChatDto {
 
     @IsNotEmpty()
     message: string
+    
+    @IsNotEmpty()
+    timestamp: string
 
 }

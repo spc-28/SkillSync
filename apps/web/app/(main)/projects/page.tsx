@@ -4,6 +4,7 @@ import { Plus, Search, Filter, Users, Clock, Calendar, Tag, MessageSquare, GitBr
 import { toast } from 'sonner';
 import axios from 'axios';
 import { useUserStore } from '../../../zustand/userStore';
+import { useRouter } from 'next/navigation';
 
 const ProjectsPage = () => {
   const [activeTab, setActiveTab] = useState('ongoing');
@@ -13,8 +14,13 @@ const ProjectsPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [apiProjects, setApiProjects] = useState<any[]>([]);
+  const [showPingModal, setShowPingModal] = useState<string | null>(null);
+  const [pingPitch, setPingPitch] = useState<string>('');
+  const [pingLoading, setPingLoading] = useState<boolean>(false);
   const { userId } = useUserStore();
+  const router = useRouter();
   const [formData, setFormData] = useState<{
+
     title: string;
     description: string;
     category: string;
@@ -92,7 +98,7 @@ const ProjectsPage = () => {
       }
 
       // API call to create project
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_DEV_API_URL}/project`, 
+      const response = await axios.post(`${process.env.NEXT_PUBLIC_DEV_API_URL}/project`,
         {
           title: formData.title,
           description: formData.description,
@@ -112,7 +118,7 @@ const ProjectsPage = () => {
 
       const data = response.data;
       console.log('Project created successfully:', data);
-      
+
       setFormData({
         title: '',
         description: '',
@@ -126,7 +132,7 @@ const ProjectsPage = () => {
       toast.success("Project created successfully")
       // You might want to refresh the projects list here
       // fetchProjects();
-      
+
     } catch (error) {
       console.error('Error creating project:', error);
       toast('Failed to create project. Please try again.');
@@ -188,21 +194,19 @@ const ProjectsPage = () => {
           <div className="flex bg-gray-100 rounded-xl p-1">
             <button
               onClick={() => setActiveTab('ongoing')}
-              className={`px-6 py-2 rounded-lg font-medium transition-all ${
-                activeTab === 'ongoing' 
-                  ? 'bg-white text-gray-900 shadow-sm' 
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
+              className={`px-6 py-2 rounded-lg font-medium transition-all ${activeTab === 'ongoing'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+                }`}
             >
               Ongoing Projects
             </button>
             <button
               onClick={() => setActiveTab('completed')}
-              className={`px-6 py-2 rounded-lg font-medium transition-all ${
-                activeTab === 'completed' 
-                  ? 'bg-white text-gray-900 shadow-sm' 
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
+              className={`px-6 py-2 rounded-lg font-medium transition-all ${activeTab === 'completed'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+                }`}
             >
               Completed
             </button>
@@ -217,11 +221,10 @@ const ProjectsPage = () => {
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-all ${
-                  selectedCategory === cat.id
-                    ? 'bg-indigo-100 text-indigo-700'
-                    : 'bg-white text-gray-600 hover:bg-gray-100'
-                }`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-all ${selectedCategory === cat.id
+                  ? 'bg-indigo-100 text-indigo-700'
+                  : 'bg-white text-gray-600 hover:bg-gray-100'
+                  }`}
               >
                 <Icon className="w-4 h-4" />
                 {cat.name}
@@ -264,23 +267,92 @@ const ProjectsPage = () => {
                       {project.description}
                     </p>
                   </div>
-                  <a
-                    href={`/workspace/${project.id}`}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white rounded-xl font-medium hover:bg-gray-800 transition-colors"
-                  >
-                    {project.status === 'ongoing' ? "Ping to Collaborate" : "Open Workspace"}
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
+                  {project.status === 'ongoing' ? (
+                    <button
+                      className="cursor-pointer flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white rounded-xl font-medium hover:bg-gray-800 transition-colors"
+                      onClick={() => setShowPingModal(project.id)}
+                    >
+                      Ping to Collaborate
+                      <ExternalLink className="w-4 h-4" />
+                    </button>
+                  ) : (
+                    <p
+                      onClick={()=> router.push(`/workspace/${project.id}`)}
+                      className="cursor-pointer flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white rounded-xl font-medium hover:bg-gray-800 transition-colors"
+                    >
+                      Open Workspace
+                      <ExternalLink className="w-4 h-4" />
+                    </p>
+                  )}
+
+                  {/* Ping to Collaborate Modal */}
+                  {showPingModal && (
+                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+                      <div className="bg-white rounded-2xl max-w-md w-full p-6">
+                        <div className="mb-4">
+                          <h2 className="text-xl font-bold text-gray-900 mb-2">Send a Pitch to Join</h2>
+                          <p className="text-sm text-gray-600 mb-2">Tell the project creator why you want to join this project.</p>
+                          <textarea
+                            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none resize-none"
+                            rows={4}
+                            placeholder="Write your pitch here..."
+                            value={pingPitch}
+                            onChange={e => setPingPitch(e.target.value)}
+                            disabled={pingLoading}
+                          />
+                        </div>
+                        <div className="flex gap-3">
+                          <button
+                            onClick={() => {
+                              setShowPingModal(null);
+                              setPingPitch('');
+                            }}
+                            className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                            disabled={pingLoading}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            className={`flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors ${pingLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
+                            disabled={pingLoading || !pingPitch.trim()}
+                            onClick={async () => {
+                              setPingLoading(true);
+                              try {
+                                await axios.post(`${process.env.NEXT_PUBLIC_DEV_API_URL}/project/request`, {
+                                  userId,
+                                  message: pingPitch.trim(),
+                                  projectId: project.id,
+                                  authorId: project.author.id
+                                });
+                                toast.success('Request sent!');
+                                setShowPingModal(null);
+                                setPingPitch('');
+                              } catch (error) {
+                                toast.error('Failed to send request.');
+                              } finally {
+                                setPingLoading(false);
+                              }
+                            }}
+                          >
+                            {pingLoading ? 'Sending...' : 'Send Request'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Author Info (API only returns author id, so just show id or placeholder) */}
-                <div className="flex items-center gap-4 mb-6">
+                <div onClick={()=> router.push(`/profile/${project.author.id}`)} className="flex items-center gap-4 mb-6 w-fit cursor-pointer">
                   <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-bold text-xl">
-                    {typeof project.author.fullName === 'string' ? project.author.fullName.slice(0, 2).toUpperCase() : 'AU'}
+                    <img
+                      src={`https://avatar.iran.liara.run/public/${index + 1}`}
+                      alt="Your avatar"
+                      className="w-12 h-12 rounded-full"
+                    />
                   </div>
                   <div>
                     <p className="font-semibold text-gray-900">{typeof project.author.fullName === 'string' ? project.author.fullName : 'Author'}</p>
-                    {/* No role info from API */}
                   </div>
                 </div>
 
@@ -288,11 +360,40 @@ const ProjectsPage = () => {
                 <div className="mb-6">
                   <h4 className="text-sm font-semibold text-gray-700 mb-3">Skills Needed</h4>
                   <div className="flex flex-wrap gap-2">
-                    {project.skillsNeeded && project.skillsNeeded.map((skill: string, idx: number) => (
-                      <span key={idx} className="px-3 py-2.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium">
-                        {skill}
-                      </span>
-                    ))}
+                    {project.skillsNeeded && project.skillsNeeded.map((skill: string, idx: number) => {
+                      // Generate a subtle random color for each tag
+                      const pastelColors = [
+                        'bg-rose-100 text-rose-700',
+                        'bg-orange-100 text-orange-700',
+                        'bg-amber-100 text-amber-700',
+                        'bg-lime-100 text-lime-700',
+                        'bg-emerald-100 text-emerald-700',
+                        'bg-sky-100 text-sky-700',
+                        'bg-indigo-100 text-indigo-700',
+                        'bg-purple-100 text-purple-700',
+                        'bg-pink-100 text-pink-700',
+                        'bg-cyan-100 text-cyan-700',
+                        'bg-fuchsia-100 text-fuchsia-700',
+                        'bg-teal-100 text-teal-700',
+                        'bg-blue-100 text-blue-700',
+                        'bg-violet-100 text-violet-700',
+                        'bg-green-100 text-green-700',
+                        'bg-yellow-100 text-yellow-700',
+                        'bg-red-100 text-red-700',
+                      ];
+                      // Use a hash of the skill name to pick a color
+                      let hash = 0;
+                      for (let i = 0; i < skill.length; i++) {
+                        hash = skill.charCodeAt(i) + ((hash << 5) - hash);
+                      }
+                      const colorIdx = Math.abs(hash) % pastelColors.length;
+                      const colorClass = pastelColors[colorIdx];
+                      return (
+                        <span key={idx} className={`px-3 py-2.5 rounded-lg text-sm font-medium ${colorClass}`}>
+                          {skill}
+                        </span>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -316,12 +417,12 @@ const ProjectsPage = () => {
                   </div>
 
                   {/* Engagement Stats */}
-                  <div className="flex items-center gap-4">
+                  {/* <div className="flex items-center gap-4">
                     <button className="cursor-pointer flex items-center gap-1.5 text-gray-600 hover:text-amber-600 transition-colors">
                       <Star className="w-4 h-4" />
                       <span className="text-sm font-medium">{project.stars || 0}</span>
                     </button>
-                  </div>
+                  </div> */}
                 </div>
               </div>
             </div>
@@ -492,11 +593,10 @@ const ProjectsPage = () => {
                 <button
                   onClick={handleSubmitProject}
                   disabled={isSubmitting}
-                  className={`flex-1 px-6 py-3 rounded-xl font-medium transition-colors ${
-                    isSubmitting 
-                      ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
-                      : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                  }`}
+                  className={`flex-1 px-6 py-3 rounded-xl font-medium transition-colors ${isSubmitting
+                    ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                    : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                    }`}
                 >
                   {isSubmitting ? 'Creating...' : 'Create Project'}
                 </button>

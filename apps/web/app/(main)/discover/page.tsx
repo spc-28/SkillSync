@@ -1,7 +1,11 @@
 'use client'
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, TrendingUp, Send, Image, Smile, Sparkles, Users, Calendar, Rocket, ChevronRight, MessageSquare, UserPlus, Code, Zap, Coffee } from 'lucide-react';
 import Link from 'next/link';
+import axios from 'axios';
+import { toast } from 'sonner';
+import { useUserStore } from '../../../zustand/userStore';
+import { useRouter } from 'next/navigation';
 
 const DiscoverPage = () => {
   const [postContent, setPostContent] = useState('');
@@ -9,90 +13,59 @@ const DiscoverPage = () => {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
-
-  const posts = [
-    {
-      id: 1,
-      author: {
-        name: "Sarah Chen",
-        username: "@sarahchen",
-        avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150",
-        role: "Full Stack Developer"
-      },
-      content: "Just deployed our AI study companion app! 🚀 Used Next.js + OpenAI API + Tailwind. The real-time response generation is mind-blowing. Looking for beta testers - especially if you're studying CS or Math. Drop a comment if interested! #AIProject #EdTech",
-      timestamp: "2h ago",
-      likes: 45,
-      comments: 12,
-      shares: 8,
-      tags: ["AI", "EdTech", "NextJS"],
-      hasImage: false
-    },
-    {
-      id: 2,
-      author: {
-        name: "Mike Johnson",
-        username: "@mikej",
-        avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150",
-        role: "Mobile Developer"
-      },
-      content: "Hot take: Flutter > React Native for campus apps. Just finished migrating our campus event app and the performance difference is insane. DM me if you want to see the benchmarks! Also looking for a UI/UX designer to polish the interface 🎨",
-      timestamp: "4h ago",
-      likes: 32,
-      comments: 28,
-      shares: 5,
-      tags: ["Flutter", "MobileApp", "UIUXNeeded"],
-      hasImage: true,
-      image: "https://images.unsplash.com/photo-1517180102446-f3ece451e9d8?w=600"
-    },
-    {
-      id: 3,
-      author: {
-        name: "Emily Green",
-        username: "@emilygreen",
-        avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150",
-        role: "Environmental Science + CS"
-      },
-      content: "Update on our Sustainable Campus Tracker: We just integrated real-time data from campus IoT sensors! 📊 Now tracking energy usage across 15 buildings. Need help with data visualization - any D3.js experts here? #Sustainability #DataViz #IoT",
-      timestamp: "6h ago",
-      likes: 67,
-      comments: 23,
-      shares: 15,
-      tags: ["GreenTech", "IoT", "DataViz"],
-      hasImage: false
-    },
-    {
-      id: 4,
-      author: {
-        name: "Alex Rivera",
-        username: "@alexrivera",
-        avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150",
-        role: "VR Developer"
-      },
-      content: "🤯 Just discovered Three.js can handle 10k+ objects in WebVR without dropping frames if you use instanced meshes correctly. Working on a virtual campus tour that lets prospective students explore in VR. Who wants to collab on the 3D modeling side?",
-      timestamp: "8h ago",
-      likes: 89,
-      comments: 34,
-      shares: 22,
-      tags: ["VR", "ThreeJS", "3DModeling"],
-      hasImage: false
-    },
-    {
-      id: 5,
-      author: {
-        name: "Lisa Wang",
-        username: "@lisawang",
-        avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150",
-        role: "Data Science Major"
-      },
-      content: "Machine Learning tip of the day: If your model is overfitting, try dropout layers before reaching for more data. Just improved our recommendation engine accuracy from 72% to 89% with this simple trick! Working on a tutorial, drop a 💡 if you want to see it!",
-      timestamp: "12h ago",
-      likes: 124,
-      comments: 45,
-      shares: 38,
-      tags: ["MachineLearning", "Tutorial", "DataScience"],
-      hasImage: false
+  const [loading, setLoading] = useState(false); // for post submit
+  const [error, setError] = useState<string | null>(null);
+  const [posts, setPosts] = useState<any[]>([]);
+  const [postsLoading, setPostsLoading] = useState(true);
+  const [postsError, setPostsError] = useState<string | null>(null);
+  const { userId } = useUserStore();
+  const router = useRouter();
+  // Fetch posts from API
+  const fetchPosts = async () => {
+    setPostsLoading(true);
+    setPostsError(null);
+    try {
+      const res = await axios.get(`${process.env.NEXT_PUBLIC_DEV_API_URL}/post`);
+      setPosts(res.data);
+    } catch (err: any) {
+      setPostsError(err?.response?.data?.message || 'Failed to load posts.');
+    } finally {
+      setPostsLoading(false);
     }
-  ];
+  };
+
+  useEffect(() => {
+    fetchPosts();
+  }, []);
+
+  // Post submit handler
+  const handlePostSubmit = async () => {
+    if (!postContent.trim() && !imageFile) return;
+    setLoading(true);
+    setError(null);
+    try {
+      // const formData = new FormData();
+      // formData.append('content', postContent);
+      // if (imageFile) formData.append('image', imageFile);
+      const res = await axios.post(`${process.env.NEXT_PUBLIC_DEV_API_URL}/post`, {
+        authorId: userId,
+        content: postContent
+      });
+      setPostContent('');
+      setImageFile(null);
+      setImagePreview(null);
+      toast.success(res.data.message);
+      await fetchPosts(); // Refresh posts after posting
+    } 
+    catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to post. Please try again.');
+    } 
+    finally {
+      setLoading(false);
+    }
+  };
+
+  // ...existing code...
 
   const recommendedUsers = [
     {
@@ -224,7 +197,7 @@ const DiscoverPage = () => {
             <div className="bg-white rounded-2xl shadow-sm p-6">
               <div className="flex gap-4">
                 <img 
-                  src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150" 
+                  src="https://avatar.iran.liara.run/public" 
                   alt="Your avatar" 
                   className="w-12 h-12 rounded-full"
                 />
@@ -233,7 +206,7 @@ const DiscoverPage = () => {
                     value={postContent}
                     onChange={(e) => setPostContent(e.target.value)}
                     placeholder="Share your project updates, tech thoughts, or ask for collaborators..."
-                    className="w-full p-4 border border-gray-200 rounded-xl resize-none h-24 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all outline-none"
+                    className="w-full p-4 border border-gray-200 rounded-xl resize-none h-32 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all outline-none"
                   />
                   {/* Image preview */}
                   {imagePreview && (
@@ -263,83 +236,88 @@ const DiscoverPage = () => {
                         )}
                       </button>
                     </div>
-                    <button className="cursor-pointer px-6 py-2 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors flex items-center gap-2">
-                      <Send className="w-4 h-4" />
-                      Post
+                    <button
+                      onClick={handlePostSubmit}
+                      disabled={loading}
+                      className={`cursor-pointer px-6 py-2 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors flex items-center gap-2 ${loading ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    >
+                      {loading ? <span className="animate-spin mr-2"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg></span> : <Send className="w-4 h-4" />}
+                      {loading ? 'Posting...' : 'Post'}
                     </button>
+                    {error && <span className="ml-4 text-red-500 text-sm">{error}</span>}
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Posts Feed */}
-            {posts.map((post) => (
-              <div key={post.id} className="bg-white rounded-2xl shadow-sm p-6 hover:shadow-md transition-shadow">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex gap-3">
-                    <img 
-                      src={post.author.avatar} 
-                      alt={post.author.name}
-                      className="w-12 h-12 rounded-full"
-                    />
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-gray-900">{post.author.name}</h3>
-                        <span className="text-gray-500 text-sm">{post.author.username}</span>
+            {postsLoading ? (
+              <div className="flex justify-center items-center py-12">
+                <span className="text-gray-500">Loading posts...</span>
+              </div>
+            ) : postsError ? (
+              <div className="flex justify-center items-center py-12">
+                <span className="text-red-500">{postsError}</span>
+              </div>
+            ) : posts.length === 0 ? (
+              <div className="flex justify-center items-center py-12">
+                <span className="text-gray-500">No posts yet.</span>
+              </div>
+            ) : (
+              posts.map((post, idx) => (
+                <div key={post.id} className="bg-white rounded-2xl shadow-sm p-6 hover:shadow-md transition-shadow">
+                  <div className="flex justify-between items-start mb-4">
+                    <div onClick={()=>router.push(`/profile/${post.authorId}`)} className="flex gap-3 items-center cursor-pointer">
+                      <img 
+                        src={`https://avatar.iran.liara.run/public/${idx + 1}`} 
+                        alt={post.authorName || 'User'}
+                        className="w-10 h-10 rounded-full"
+                      />
+                      <div>
+                        <div className="flex items-center">
+                          <h3 className="font-semibold text-gray-900" >{post.authorName || 'User'}</h3>
+                        </div>
                       </div>
-                      <p className="text-sm text-gray-600">{post.author.role} • {post.timestamp}</p>
                     </div>
+                    <button className="text-gray-400 hover:text-gray-600">
+                      <MoreHorizontal className="w-5 h-5" />
+                    </button>
                   </div>
-                  <button className="text-gray-400 hover:text-gray-600">
-                    <MoreHorizontal className="w-5 h-5" />
-                  </button>
-                </div>
 
-                <div className="mb-4">
-                  <p className="text-gray-800 leading-relaxed">{post.content}</p>
-                  {post.hasImage && (
-                    <img 
-                      src={post.image} 
-                      alt="Post content" 
-                      className="mt-4 rounded-xl w-full max-h-96 object-cover"
-                    />
-                  )}
-                </div>
+                  <div className="mb-4">
+                    <p className="text-gray-800 leading-relaxed">{post.content}</p>
+                    {post.imageUrl && (
+                      <img 
+                        src={post.imageUrl} 
+                        alt="Post content" 
+                        className="mt-4 rounded-xl w-full max-h-96 object-cover"
+                      />
+                    )}
+                  </div>
 
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {post.tags.map((tag, idx) => (
+                   <div className="flex flex-wrap gap-2 mb-4">
+                  {(post.tags || ['ai/ml', 'Dev']).map((tag: string, idx: number) => (
                     <span key={idx} className="text-indigo-600 text-sm hover:underline cursor-pointer">
                       #{tag}
                     </span>
                   ))}
                 </div>
 
-                <div className="flex items-center justify-end pr-2 pt-4 border-t">
-                  <button 
-                    onClick={() => handleLike(post.id)}
-                    className={`flex items-center gap-2 transition-colors ${
-                      likedPosts.has(post.id) 
-                        ? 'text-red-600' 
-                        : 'text-gray-500 hover:text-red-600'
-                    }`}
-                  >
-                    <Heart className={`w-5 h-5 ${likedPosts.has(post.id) ? 'fill-current' : ''}`} />
-                    <span className="text-sm font-medium">{post.likes}</span>
-                  </button>
-                  {/* <button className="flex items-center gap-2 text-gray-500 hover:text-indigo-600 transition-colors">
-                    <MessageCircle className="w-5 h-5" />
-                    <span className="text-sm font-medium">{post.comments}</span>
-                  </button> */}
-                  {/* <button className="flex items-center gap-2 text-gray-500 hover:text-green-600 transition-colors">
-                    <Share2 className="w-5 h-5" />
-                    <span className="text-sm font-medium">{post.shares}</span>
-                  </button> */}
-                  {/* <button className="text-gray-500 hover:text-indigo-600 transition-colors">
-                    <Bookmark className="w-5 h-5" />
-                  </button> */}
+                  {/* Tags not present in API, skip for now */}
+
+                  {/* Like button (optional, not functional) */}
+                  {/* <div className="flex items-center justify-end pr-2 pt-4 border-t">
+                    <button 
+                      // onClick={() => handleLike(post.id)}
+                      className={`flex items-center gap-2 transition-colors text-gray-500 hover:text-red-600`}
+                    >
+                      <Heart className={`w-5 h-5`} />
+                      <span className="text-sm font-medium">{post.likes}</span>
+                    </button>
+                  </div> */}
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
 
           {/* Right Sidebar - AI Recommendations */}
@@ -444,7 +422,7 @@ const DiscoverPage = () => {
             </div>
 
             {/* Trending Topics */}
-            <div className="bg-white rounded-2xl shadow-sm p-6">
+            {/* <div className="bg-white rounded-2xl shadow-sm p-6">
               <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
                 <TrendingUp className="w-5 h-5 text-green-600" />
                 Trending Topics
@@ -467,7 +445,7 @@ const DiscoverPage = () => {
                   <span className="text-xs text-gray-500">61 posts</span>
                 </div>
               </div>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>

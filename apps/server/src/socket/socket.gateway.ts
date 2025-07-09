@@ -46,6 +46,7 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
 	async handleSendMessage(
 		@MessageBody() data: { room: string; message: string; sender: string; timestamp: string },
 	) {
+		this.socketService.createRoomChat(data);
 		const user = await this.socketService.findUserName(data.sender);
 		console.log(data);
 		this.server.to(data.room).emit('newMessage', {

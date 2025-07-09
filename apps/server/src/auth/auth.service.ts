@@ -25,6 +25,13 @@ export class AuthService {
 				uid: user.uid
 			});
 
+			await db.collection('userMeta').doc(user.uid).set({
+				projects: [],
+				contributions: [],
+				hackathons: [],
+				certifications: []
+			})
+
 			const customToken = await user.getIdToken();
 
 			return {

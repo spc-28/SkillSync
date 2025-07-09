@@ -3,6 +3,7 @@
 import { create } from 'zustand';
 import { RefObject, createRef } from 'react';
 import { MessagesMap, User } from '../types/chatTypes';
+import { User as StoreUser } from '../types/chatTypes';
 
 
 type SetMessagesArg = MessagesMap | ((prev: MessagesMap) => MessagesMap);
@@ -13,6 +14,8 @@ interface ChatStore {
   messages: MessagesMap;
   setMessages: (messages: SetMessagesArg) => void;
   chatEndRef: RefObject<HTMLDivElement | null>;
+  users: StoreUser[];
+  setUsers: (users: StoreUser[])=>void;
 }
 
 export const useChatStore = create<ChatStore>((set) => ({
@@ -29,4 +32,7 @@ export const useChatStore = create<ChatStore>((set) => ({
     })),
 
   chatEndRef: createRef(),
+
+  users: [],
+  setUsers: (users: StoreUser[])=>set({users: users})
 }));

@@ -22,11 +22,25 @@ export class ChatService {
     try {
       const chatsSnapshot1 = await db.collection('chats').where('senderId', '==', id).get();
       const chatsSnapshot2 = await db.collection('chats').where('receiverId', '==', id).get();
-      return [...chatsSnapshot1.docs, ...chatsSnapshot2.docs].reverse().map(doc => ({ id: doc.id, ...doc.data() }));
+      //@ts-ignore
+      return [...chatsSnapshot1.docs, ...chatsSnapshot2.docs].map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
     } 
     catch (error) {
       console.error('Error fetching chats:', error);
       throw new Error('Failed to fetch chats');
+    }
+  }
+
+  async getUser(id: string) {
+     try {
+      const userSnapshot = await db.collection('users').doc(id).get();
+      return {
+        ...userSnapshot.data()
+      }
+    } 
+    catch (error) {
+      console.error('Error fetching user:', error);
+      throw new Error('Failed to fetch user');
     }
   }
 

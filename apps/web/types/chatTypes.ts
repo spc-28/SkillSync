@@ -1,10 +1,10 @@
 export type User = {
     id: string;
     name: string;
-    role: string;
-    avatar: string;
-    status: string;
-    lastSeen: string;
+    role?: string;
+    avatar?: string;
+    status?: string;
+    lastSeen?: string;
 };
 
 export type Message = {

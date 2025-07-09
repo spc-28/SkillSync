@@ -16,4 +16,9 @@ export class ChatController {
     return this.chatService.findAllChats(id);
   }
 
+  @Get('/user/:id')
+  getUser(@Param('id') id: string) {
+    return this.chatService.getUser(id);
+  }
+
 }

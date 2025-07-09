@@ -16,26 +16,8 @@ type ApiUser = {
 
 export default function ChatUsers() {
     const [searchTerm, setSearchTerm] = useState<string>('');
-    const [users, setUsers] = useState<StoreUser[]>([]);
-    const { selectedUser, setSelectedUser, messages, chatEndRef } = useChatStore();
+    const { selectedUser, setSelectedUser, messages, chatEndRef, users, setUsers } = useChatStore();
     const router = useRouter();
-
-    useEffect(() => {
-        const fetchUsers = async () => {
-            try {
-                const response = await axios.get(`${process.env.NEXT_PUBLIC_DEV_API_URL}/chat/users`);
-
-                const mappedUsers: StoreUser[] = response.data.map((u: ApiUser) => ({
-                    id: u.uid,
-                    name: u.fullName,
-                }));
-                setUsers(mappedUsers);
-            } catch (error) {
-                toast.error("Failed opening message")
-            }
-        };
-        fetchUsers();
-    }, []);
 
     const filteredUsers = users.filter(user =>
         user.name.toLowerCase().includes(searchTerm.toLowerCase())

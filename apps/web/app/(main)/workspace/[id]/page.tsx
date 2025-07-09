@@ -2,14 +2,17 @@
 import React, { useState, useRef, useEffect, KeyboardEvent, MouseEvent, ChangeEvent } from 'react';
 import { Send, Bot, Users, Plus, Image, X, ArrowLeft, Sparkles, CheckSquare } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
+import axios from 'axios';
 import { useSocketStore } from '../../../../zustand/socketStore';
 import { useUserStore } from '../../../../zustand/userStore';
+import { toast } from 'sonner';
 
 type UploadedImage = {
   file: File;
   url: string;
   name: string;
 };
+
 type AiMessage = {
   id: number;
   text?: string;
@@ -17,11 +20,13 @@ type AiMessage = {
   timestamp: string;
   isUser: boolean;
 };
+
 type AiChat = {
   id: number;
   name: string;
   messages: AiMessage[];
 };
+
 type TeamMessage = {
   id: number;
   user: string;
@@ -32,30 +37,56 @@ type TeamMessage = {
   isCurrentUser: boolean;
   messageType?: 'normal' | 'ai' | 'task';
 };
+
 type TeamMember = {
   name: string;
   initials: string;
   color: string;
   online: boolean;
+  id?: string;
 };
 
 type ChatMode = 'normal' | 'ai' | 'task';
 
+// API Response Types
+type ApiTeamMember = {
+  id: string;
+  fullName: string;
+};
+
+type ApiProject = {
+  id: string;
+  title: string;
+  status: string;
+  teamMembers: ApiTeamMember[];
+};
+
+type ApiChat = {
+  id: string;
+  sender: string;
+  room: string;
+  message: string;
+  timestamp: string;
+};
+
+type ApiResponse = {
+  project: ApiProject;
+  chats: ApiChat[];
+};
+
 const ChatInterface: React.FC = () => {
   const { id } = useParams();
   const router = useRouter();
-  const [projectName] = useState<string>(()=>{
-    if(id == '1'){
-      return "Phoenix Development"
-    }
-    else {
-      return "Drone Dev"
-    }
-  
-  });
-  const [leftPanelWidth, setLeftPanelWidth] = useState<number>(50);
-  const { ws } = useSocketStore()
+  const { ws } = useSocketStore();
   const { userId } = useUserStore();
+  
+  // State for API data
+  const [projectName, setProjectName] = useState<string>('Loading...');
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  const [leftPanelWidth, setLeftPanelWidth] = useState<number>(50);
   const [aiChats, setAiChats] = useState<AiChat[]>([
     {
       id: 1,
@@ -71,6 +102,107 @@ const ChatInterface: React.FC = () => {
     },
   ]);
 
+  const [currentAiChatId, setCurrentAiChatId] = useState<number>(1);
+  const [teamMessages, setTeamMessages] = useState<TeamMessage[]>([]);
+  const [aiInput, setAiInput] = useState<string>("");
+  const [teamInput, setTeamInput] = useState<string>("");
+  const [isResizing, setIsResizing] = useState<boolean>(false);
+  const [aiUploadedImage, setAiUploadedImage] = useState<UploadedImage | null>(null);
+  const [teamUploadedImage, setTeamUploadedImage] = useState<UploadedImage | null>(null);
+  const [chatMode, setChatMode] = useState<ChatMode>('normal');
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const aiFileInputRef = useRef<HTMLInputElement | null>(null);
+  const teamFileInputRef = useRef<HTMLInputElement | null>(null);
+  const [status, setStatus] = useState<string>()
+
+  // Generate initials from full name
+  const generateInitials = (fullName: string): string => {
+    return fullName
+      .split(' ')
+      .map(name => name.charAt(0))
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  // Generate color for team member
+  const generateColor = (index: number): string => {
+    const colors = ['bg-purple-500', 'bg-blue-500', 'bg-pink-500', 'bg-green-500', 'bg-yellow-500', 'bg-red-500'];
+    return colors[index % colors.length] ?? 'bg-blue-500';
+  };
+
+  // Format timestamp to HH:MM
+  const formatTimestamp = (timestamp: string): string => {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString("en-US", {
+      hour12: false,
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  // Fetch project data
+  const fetchProjectData = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Replace with your actual API endpoint
+      const response = await axios.get<ApiResponse>(`${process.env.NEXT_PUBLIC_DEV_API_URL}/workspace/${id}`);
+      const { project, chats } = response.data;
+      
+      // Set project name
+      setProjectName(project.title);
+      setStatus(project.status);
+      
+      // Map team members
+      const mappedTeamMembers: TeamMember[] = project.teamMembers.map((member, index) => ({
+        name: member.fullName.split(' ')[0] || '',
+        initials: generateInitials(member.fullName),
+        color: generateColor(index),
+        online: true, // You might want to implement actual online status
+        id: member.id,
+      }));
+      setTeamMembers(mappedTeamMembers);
+      
+      // Map chat messages
+      const mappedMessages: TeamMessage[] = chats.map((chat, index) => {
+        const isCurrentUser = chat.sender === userId;
+        const senderMember = project.teamMembers.find(member => member.id === chat.sender);
+        const senderName = isCurrentUser ? 'You' : (senderMember?.fullName || 'Unknown User');
+        
+        return {
+          id: index + 1,
+          user: senderName,
+          initials: isCurrentUser ? 'YU' : generateInitials(senderMember?.fullName || 'Unknown'),
+          text: chat.message,
+          timestamp: formatTimestamp(chat.timestamp),
+          isCurrentUser,
+          messageType: 'normal' as const,
+        };
+      });
+      setTeamMessages(mappedMessages);
+      
+    } catch (err) {
+      console.error('Error fetching project data:', err);
+      setError('Failed to load project data');
+      // Fallback to default values
+      setProjectName('Project');
+      setTeamMembers([
+        { name: "You", initials: "YU", color: "bg-blue-500", online: true },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Fetch data on component mount
+  useEffect(() => {
+    if (id) {
+      fetchProjectData();
+    }
+  }, [id, userId]);
+
   useEffect(() => {
     if (!ws) return;
 
@@ -84,7 +216,6 @@ const ChatInterface: React.FC = () => {
     const formatted = `${hours}:${minutes}`;
 
     ws.on('newMessage', (data: { sender: string; message: string; senderName: string }) => {
-
       if (data.sender !== userId) {
         setTeamMessages((prev) => [
           ...prev,
@@ -103,7 +234,7 @@ const ChatInterface: React.FC = () => {
 
     if (userId) {
       ws.emit('joinRoom', {
-        room: projectName.split(' ').join('_'),
+        room: id,
         userId: userId,
       });
     }
@@ -113,53 +244,6 @@ const ChatInterface: React.FC = () => {
       ws.off('newMessage');
     };
   }, [ws, userId]);
-
-  const [currentAiChatId, setCurrentAiChatId] = useState<number>(1);
-  const [teamMessages, setTeamMessages] = useState<TeamMessage[]>([
-    {
-      id: 1,
-      user: "Alex Johnson",
-      initials: "AJ",
-      text: "Hey everyone! How's the project going?",
-      timestamp: "21:48",
-      isCurrentUser: false,
-      messageType: 'normal',
-    },
-    {
-      id: 2,
-      user: "Irene Brooks",
-      initials: "IB",
-      text: "Making great progress! Just finished the design mockups.",
-      timestamp: "21:49",
-      isCurrentUser: false,
-      messageType: 'normal',
-    },
-    {
-      id: 3,
-      user: "David Kim",
-      initials: "DK",
-      text: "Awesome! Can't wait to review them.",
-      timestamp: "21:50",
-      isCurrentUser: false,
-      messageType: 'normal',
-    },
-  ]);
-  const [aiInput, setAiInput] = useState<string>("");
-  const [teamInput, setTeamInput] = useState<string>("");
-  const [isResizing, setIsResizing] = useState<boolean>(false);
-  const [aiUploadedImage, setAiUploadedImage] = useState<UploadedImage | null>(null);
-  const [teamUploadedImage, setTeamUploadedImage] = useState<UploadedImage | null>(null);
-  const [chatMode, setChatMode] = useState<ChatMode>('normal');
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const aiFileInputRef = useRef<HTMLInputElement | null>(null);
-  const teamFileInputRef = useRef<HTMLInputElement | null>(null);
-
-  const teamMembers: TeamMember[] = [
-    { name: "Irene", initials: "IB", color: "bg-purple-500", online: true },
-    { name: "Alex", initials: "AJ", color: "bg-blue-500", online: true },
-    { name: "Maria", initials: "MG", color: "bg-pink-500", online: true },
-    { name: "David", initials: "DK", color: "bg-green-500", online: false },
-  ];
 
   const getCurrentAiMessages = (): AiMessage[] => {
     const currentChat = aiChats.find((chat) => chat.id === currentAiChatId);
@@ -317,11 +401,11 @@ const ChatInterface: React.FC = () => {
       });
 
       // Send message via socket
-      if (ws && userId && chatMode=="normal") {
+      if (ws && userId && chatMode === "normal") {
         ws.emit('sendMessage', {
           sender: userId,
           message: teamInput,
-          room: projectName.split(' ').join('_'),
+          room: id,
           timestamp: new Date().toISOString()
         });
       }
@@ -333,7 +417,7 @@ const ChatInterface: React.FC = () => {
           id: currentMessages.length + 1,
           text: teamInput,
           image: teamUploadedImage,
-          timestamp: timestamp,
+          timestamp: new Date().toISOString(),
           isUser: true,
         };
         const updatedChats = aiChats.map((chat) => {
@@ -347,20 +431,6 @@ const ChatInterface: React.FC = () => {
         });
         setAiChats(updatedChats);
 
-        // Also add to team chat with AI indicator
-        const teamMessage: TeamMessage = {
-          id: teamMessages.length + 1,
-          user: "You",
-          initials: "YU",
-          text: teamInput,
-          image: teamUploadedImage,
-          timestamp: timestamp,
-          isCurrentUser: true,
-          messageType: 'ai',
-        };
-        setTeamMessages([...teamMessages, teamMessage]);
-
-        // Simulate AI response
         setTimeout(() => {
           const aiResponse: AiMessage = {
             id: currentMessages.length + 2,
@@ -384,26 +454,23 @@ const ChatInterface: React.FC = () => {
             })
           );
         }, 1000);
-      } else if (chatMode === 'task') {
-        // Send as task (would normally call API here)
-        const taskMessage: TeamMessage = {
-          id: teamMessages.length + 1,
-          user: "You",
-          initials: "YU",
-          text: teamInput,
-          image: teamUploadedImage,
-          timestamp: timestamp,
-          isCurrentUser: true,
-          messageType: 'task',
-        };
-        setTeamMessages([...teamMessages, taskMessage]);
-
-        // Simulate API call
-        console.log('Task API call:', {
-          text: teamInput,
-          image: teamUploadedImage,
-          timestamp: timestamp,
-        });
+      } 
+      else if (chatMode === 'task') {
+        (async () => {
+          try {
+            await axios.post(`${process.env.NEXT_PUBLIC_DEV_API_URL}/workspace/task`, {
+              task: teamInput,
+              timestamp: new Date().toISOString(),
+              userId: userId,
+              projectId: id
+            });
+            toast.success("Task created successfully");
+          } 
+          catch (error: any) {
+            console.error('Failed to create task:', error);
+            toast.error('Failed to create task');
+          }
+        })();
       } else {
         // Normal message
         const newMessage: TeamMessage = {
@@ -465,6 +532,33 @@ const ChatInterface: React.FC = () => {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading project...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-100">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{error}</p>
+          <button 
+            onClick={fetchProjectData}
+            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-screen bg-gray-100 font-sans">
       {/* Top Navigation Bar */}
@@ -509,32 +603,6 @@ const ChatInterface: React.FC = () => {
               </div>
             </div>
           </div>
-
-          {/* Chat Tabs */}
-          {/* <div className="border-b border-gray-100">
-            <div className="flex items-center">
-              {aiChats.map((chat) => (
-                <button
-                  key={chat.id}
-                  onClick={() => setCurrentAiChatId(chat.id)}
-                  className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                    currentAiChatId === chat.id
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  {chat.name}
-                </button>
-              ))}
-              <button
-                onClick={addNewAiChat}
-                className="p-2 ml-2 hover:bg-gray-100 rounded transition-colors"
-                title="Add new chat"
-              >
-                <Plus className="w-4 h-4 text-gray-500" />
-              </button>
-            </div>
-          </div> */}
 
           {/* AI Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -589,26 +657,23 @@ const ChatInterface: React.FC = () => {
               </div>
               <div>
                 <h2 className="font-semibold text-gray-900">Team Chat</h2>
-                <p className="text-sm text-gray-500">{projectName} • 3 online</p>
+                <p className="text-sm text-gray-500">{projectName}</p>
               </div>
             </div>
           </div>
 
           {/* Team Members */}
           <div className="p-4 border-b border-gray-100">
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center gap-10">
               {teamMembers.map((member, index) => (
                 <div key={index} className="relative">
                   <div className={`w-8 h-8 ${member.color} rounded-full flex items-center justify-center text-white font-medium text-sm`}>
                     {member.initials}
                   </div>
-                  {member.online && (
-                    <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-400 border-2 border-white rounded-full"></div>
-                  )}
                 </div>
               ))}
             </div>
-            <div className="flex items-center space-x-4 mt-2 text-xs text-gray-600">
+            <div className="flex items-center gap-7 mt-2 text-xs text-gray-600">
               {teamMembers.map((member, index) => (
                 <span key={index}>{member.name}</span>
               ))}
@@ -702,7 +767,7 @@ const ChatInterface: React.FC = () => {
               </div>
             )}
             
-            <div className="flex items-center space-x-2">
+            {status=="ongoing" && <div className="flex items-center space-x-2">
               <button
                 onClick={() => teamFileInputRef.current?.click()}
                 className="p-2 cursor-pointer text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
@@ -773,7 +838,7 @@ const ChatInterface: React.FC = () => {
               >
                 <Send className="size-5" />
               </button>
-            </div>
+            </div>}
           </div>
         </div>
       </div>

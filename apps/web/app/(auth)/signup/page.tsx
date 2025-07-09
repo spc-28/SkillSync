@@ -38,7 +38,7 @@ export default function Page() {
       setUserId(data.user.uid);
       localStorage.setItem('userId', data.user.uid)
       toast.success(data.message);
-      router.push('/discover');
+      router.push(`/complete-profile/${data.user.uid}`);
     } catch (err: any) {
       toast.error(err.response.data.message || 'Something went wrong')
     } finally {
