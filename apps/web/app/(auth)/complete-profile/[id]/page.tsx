@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import axios from 'axios';
 import { marked } from 'marked';
 import MarkdownRenderer from '../../../../utils/markdownRender';
+import { useUserStore } from '../../../../zustand/userStore';
 
 const OnboardingForm = () => {
 
@@ -12,6 +13,8 @@ const OnboardingForm = () => {
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
+  const setUserGender = useUserStore((state) => state.setUserGender);
+  const setUserName = useUserStore((state) => state.setUserName);
   const [formData, setFormData] = useState({
     gender: '',
     semester: '',
@@ -66,6 +69,8 @@ const OnboardingForm = () => {
       const response = await axios.put(`${process.env.NEXT_PUBLIC_DEV_API_URL}/profile/${id}`, payload);
       if (response.status === 200) {
         console.log('Profile completed successfully');
+        setUserName(response.data.user.fullName)
+        setUserGender(response.data.user.gender)
         setStep(3);
       } else {
         console.error('Failed to complete profile');

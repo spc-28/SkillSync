@@ -11,7 +11,9 @@ import axios from 'axios';
 const Portfolio = () => {
 	const router = useRouter();
 	const { id } = useParams();
-	const { userId } = useUserStore();
+	const userId  = useUserStore((state)=> state.userId);
+	const userGender = useUserStore((state) => state.userGender);
+	const userName = useUserStore((state) => state.userName);
 
 	// State for modal
 	const [showEditModal, setShowEditModal] = useState(false);
@@ -81,11 +83,17 @@ const Portfolio = () => {
 					<div className="flex flex-col items-center lg:items-start">
 						{/* Profile Photo */}
 						<div className="w-48 h-48 rounded-full overflow-hidden flex-shrink-0 ring-4 ring-purple-100">
+							{userId==id? <img
+								src={`https://avatar.iran.liara.run/public/${userGender}?username=${userName}`}
+								alt="Profile"
+								className="w-full h-full object-cover"
+							/>:
 							<img
-								src="https://avatar.iran.liara.run/public"
+								src={`https://avatar.iran.liara.run/public/`}
 								alt="Profile"
 								className="w-full h-full object-cover"
 							/>
+							}
 						</div>
 
 						{/* Profile Info */}
@@ -182,17 +190,17 @@ const Portfolio = () => {
 																techStack: editForm.techStack,
 																experience: editForm.roles
 															};
-														await axios.put(`${process.env.NEXT_PUBLIC_DEV_API_URL}/profile/${id}`, payload);
-														// Update local state for real-time UI update
-														setProfile((prev: any) => ({
-														  ...prev,
-														  semester: payload.semester,
-														  description: payload.description,
-														  techStack: payload.techStack,
-														  experience: payload.experience
-														}));
-														toast.success("Profile updated successfully")
-														setShowEditModal(false);
+															await axios.put(`${process.env.NEXT_PUBLIC_DEV_API_URL}/profile/${id}`, payload);
+															// Update local state for real-time UI update
+															setProfile((prev: any) => ({
+																...prev,
+																semester: payload.semester,
+																description: payload.description,
+																techStack: payload.techStack,
+																experience: payload.experience
+															}));
+															toast.success("Profile updated successfully")
+															setShowEditModal(false);
 														} catch (err) {
 															toast.error("Failed to update profile")
 															setShowEditModal(false);

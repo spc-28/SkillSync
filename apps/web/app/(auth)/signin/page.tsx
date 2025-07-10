@@ -16,6 +16,8 @@ export default function Page() {
   });
   const [loading, setLoading] = useState(false);
   const { setUserId } = useUserStore();
+    const setUserGender = useUserStore((state) => state.setUserGender);
+    const setUserName = useUserStore((state) => state.setUserName);
 
   const router = useRouter();
 
@@ -33,6 +35,8 @@ export default function Page() {
       const data = response.data;
       localStorage.setItem('token', data.token);
       setUserId(data.user.uid);
+      setUserName(data.user.fullName)
+      setUserGender(data.user.gender)
       localStorage.setItem('userId', data.user.uid);
       toast.success(data.message);
       router.push('/discover');

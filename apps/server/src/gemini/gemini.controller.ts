@@ -15,4 +15,10 @@ export class GeminiController {
   async getAllGeminiChats(@Param('id') id: string) {
     return this.geminiService.getGeminiChats(id);
   }
+
+  @Get('/recommendation/:id')
+  async recommendations(@Param('id') id: string) {
+    return this.geminiService.getGeminiRecomendations(id);
+  }
+
 }

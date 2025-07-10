@@ -52,7 +52,11 @@ export class ProfileService {
             await userRef.update({ ...data, ...content });
 
             return {
-                message: 'User profile updated successfully'
+                message: 'User profile updated successfully',
+                user: {
+                    fullName: data?.fullName,
+                    gender: payload.gender ,
+                }
             };
         }
         catch (error: any) {

@@ -1,6 +1,6 @@
 'use client'
 import React, { useState, useEffect } from 'react';
-import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, TrendingUp, Send, Image, Smile, Sparkles, Users, Calendar, Rocket, ChevronRight, MessageSquare, UserPlus, Code, Zap, Coffee } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, TrendingUp, Send, Image, Smile, Sparkles, Users, Calendar, Rocket, ChevronRight, MessageSquare, UserPlus, Code, Zap, Coffee, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import axios from 'axios';
 import { toast } from 'sonner';
@@ -18,8 +18,57 @@ const DiscoverPage = () => {
   const [posts, setPosts] = useState<any[]>([]);
   const [postsLoading, setPostsLoading] = useState(true);
   const [postsError, setPostsError] = useState<string | null>(null);
+  
+  const [recommendations, setRecommendations] = useState<any>(null);
+  const [recommendationsLoading, setRecommendationsLoading] = useState(true);
+  const [recommendationsError, setRecommendationsError] = useState<string | null>(null);
+  
   const { userId } = useUserStore();
+    const userGender = useUserStore((state) => state.userGender);
+    const userName = useUserStore((state) => state.userName);
   const router = useRouter();
+  
+  const RECOMMENDATIONS_KEY = 'cached_recommendations';
+  const RECOMMENDATIONS_TIMESTAMP_KEY = 'recommendations_timestamp';
+  const CACHE_DURATION = 3 * 60 * 60 * 1000; // 3 hour
+  
+  const isCacheValid = () => {
+    const timestamp = sessionStorage.getItem(RECOMMENDATIONS_TIMESTAMP_KEY);
+    if (!timestamp) return false;
+    
+    const age = Date.now() - parseInt(timestamp);
+    return age < CACHE_DURATION;
+  };
+  
+  // Get cached recommendations
+  const getCachedRecommendations = () => {
+    try {
+      const cached = sessionStorage.getItem(RECOMMENDATIONS_KEY);
+      if (cached && isCacheValid()) {
+        return JSON.parse(cached);
+      }
+    } catch (error) {
+      console.error('Error reading cache:', error);
+    }
+    return null;
+  };
+  
+  // Save recommendations to cache
+  const cacheRecommendations = (data: any) => {
+    try {
+      sessionStorage.setItem(RECOMMENDATIONS_KEY, JSON.stringify(data));
+      sessionStorage.setItem(RECOMMENDATIONS_TIMESTAMP_KEY, Date.now().toString());
+    } catch (error) {
+      console.error('Error saving to cache:', error);
+    }
+  };
+  
+  // Clear recommendations cache
+  const clearRecommendationsCache = () => {
+    sessionStorage.removeItem(RECOMMENDATIONS_KEY);
+    sessionStorage.removeItem(RECOMMENDATIONS_TIMESTAMP_KEY);
+  };
+  
   // Fetch posts from API
   const fetchPosts = async () => {
     setPostsLoading(true);
@@ -34,8 +83,36 @@ const DiscoverPage = () => {
     }
   };
 
+
+  const fetchRecommendations = async (forceRefresh = false) => {
+    if (!forceRefresh) {
+      const cached = getCachedRecommendations();
+      if (cached) {
+        console.log('Using cached recommendations');
+        setRecommendations(cached);
+        setRecommendationsLoading(false);
+        return;
+      }
+    }
+    
+    setRecommendationsLoading(true);
+    setRecommendationsError(null);
+    try {
+      console.log('Fetching fresh recommendations...');
+      const res = await axios.get(`${process.env.NEXT_PUBLIC_DEV_API_URL}/gemini/recommendation/${userId}`);
+      setRecommendations(res.data);
+      cacheRecommendations(res.data);
+    } catch (err: any) {
+      setRecommendationsError(err?.response?.data?.message || 'Failed to load recommendations.');
+    } finally {
+      setRecommendationsLoading(false);
+    }
+  };
+
   useEffect(() => {
+    // Fetch posts and recommendations independently
     fetchPosts();
+    fetchRecommendations();
   }, []);
 
   // Post submit handler
@@ -44,18 +121,26 @@ const DiscoverPage = () => {
     setLoading(true);
     setError(null);
     try {
-      // const formData = new FormData();
-      // formData.append('content', postContent);
-      // if (imageFile) formData.append('image', imageFile);
+      let imageUrl = null;
+      if (imageFile) {
+        // Upload image via API
+        const formData = new FormData();
+        formData.append('file', imageFile);
+        const uploadRes = await axios.post(`${process.env.NEXT_PUBLIC_DEV_API_URL}/post/image`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        imageUrl = uploadRes.data?.imageUrl;
+      }
       const res = await axios.post(`${process.env.NEXT_PUBLIC_DEV_API_URL}/post`, {
         authorId: userId,
-        content: postContent
+        content: postContent,
+        ...(imageUrl ? { imageUrl } : {})
       });
       setPostContent('');
       setImageFile(null);
       setImagePreview(null);
       toast.success(res.data.message);
-      await fetchPosts(); // Refresh posts after posting
+      await fetchPosts();
     } 
     catch (err: any) {
       toast.error(err?.response?.data?.message || 'Failed to post. Please try again.');
@@ -64,92 +149,6 @@ const DiscoverPage = () => {
       setLoading(false);
     }
   };
-
-  // ...existing code...
-
-  const recommendedUsers = [
-    {
-      id: 1,
-      name: "David Kim",
-      username: "@davidkim",
-      avatar: "https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=150",
-      role: "Backend Developer",
-      skills: ["Python", "Django", "PostgreSQL"],
-      matchReason: "Working on similar AI projects"
-    },
-    {
-      id: 2,
-      name: "Nina Patel",
-      username: "@ninapatel",
-      avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
-      role: "UI/UX Designer",
-      skills: ["Figma", "React", "Tailwind"],
-      matchReason: "Looking for developers"
-    },
-    {
-      id: 3,
-      name: "Carlos Mendez",
-      username: "@carlosm",
-      avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150",
-      role: "Full Stack Developer",
-      skills: ["MERN Stack", "AWS", "Docker"],
-      matchReason: "Interested in EdTech"
-    }
-  ];
-
-  const recommendedProjects = [
-    {
-      id: 1,
-      title: "Blockchain Study Groups",
-      description: "Building a decentralized platform for study group management",
-      skills: ["Solidity", "React", "Web3"],
-      teamSize: "2/4 members",
-      matchScore: 95
-    },
-    {
-      id: 2,
-      title: "Campus Food Tracker",
-      description: "Real-time tracking of campus dining hall menus and nutrition",
-      skills: ["React Native", "Node.js", "MongoDB"],
-      teamSize: "3/5 members",
-      matchScore: 88
-    },
-    {
-      id: 3,
-      title: "AI Research Assistant",
-      description: "Chrome extension that helps with academic research using AI",
-      skills: ["JavaScript", "Python", "NLP"],
-      teamSize: "1/3 members",
-      matchScore: 82
-    }
-  ];
-
-  const upcomingEvents = [
-    {
-      id: 1,
-      name: "Web3 Hackathon",
-      date: "March 24-26",
-      type: "Hackathon",
-      registrationOpen: true,
-      spotsLeft: 45
-    },
-    {
-      id: 2,
-      name: "AI/ML Workshop Series",
-      date: "April 2",
-      type: "Workshop",
-      registrationOpen: true,
-      spotsLeft: 20
-    },
-    {
-      id: 3,
-      name: "Tech Career Fair",
-      date: "May 5-6",
-      type: "Conference",
-      registrationOpen: false,
-      spotsLeft: 0
-    }
-  ];
 
   const handleLike = (postId: any) => {
     const newLikedPosts = new Set(likedPosts);
@@ -186,6 +185,32 @@ const DiscoverPage = () => {
     setImagePreview(null);
   };
 
+  // Format date for events
+  const formatEventDate = (startDate: string, endDate: string) => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+    
+    if (start.toDateString() === end.toDateString()) {
+      return start.toLocaleDateString('en-US', { ...options, year: 'numeric' });
+    }
+    return `${start.toLocaleDateString('en-US', options)} - ${end.toLocaleDateString('en-US', options)}`;
+  };
+
+  // Loading skeleton component
+  const LoadingSkeleton = () => (
+    <div className="animate-pulse">
+      <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+      <div className="h-3 bg-gray-200 rounded w-1/2 mb-2"></div>
+      <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+    </div>
+  );
+
+  const handleRefreshRecommendations = () => {
+    clearRecommendationsCache();
+    fetchRecommendations(true);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 mt-16">
       {/* Main Content */}
@@ -197,7 +222,7 @@ const DiscoverPage = () => {
             <div className="bg-white rounded-2xl shadow-sm p-6">
               <div className="flex gap-4">
                 <img 
-                  src="https://avatar.iran.liara.run/public" 
+                  src={`https://avatar.iran.liara.run/public/${userGender}?username=${userName}`} 
                   alt="Your avatar" 
                   className="w-12 h-12 rounded-full"
                 />
@@ -288,33 +313,21 @@ const DiscoverPage = () => {
                     <p className="text-gray-800 leading-relaxed">{post.content}</p>
                     {post.imageUrl && (
                       <img 
-                        src={post.imageUrl} 
-                        alt="Post content" 
-                        className="mt-4 rounded-xl w-full max-h-96 object-cover"
+                        src={post.imageUrl}
+                        alt="Post content"
+                        className="mt-4 rounded-xl w-full max-h-96 object-cover border border-gray-200"
+                        onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
                       />
                     )}
                   </div>
 
-                   <div className="flex flex-wrap gap-2 mb-4">
-                  {(post.tags || ['ai/ml', 'Dev']).map((tag: string, idx: number) => (
-                    <span key={idx} className="text-indigo-600 text-sm hover:underline cursor-pointer">
-                      #{tag}
-                    </span>
-                  ))}
-                </div>
-
-                  {/* Tags not present in API, skip for now */}
-
-                  {/* Like button (optional, not functional) */}
-                  {/* <div className="flex items-center justify-end pr-2 pt-4 border-t">
-                    <button 
-                      // onClick={() => handleLike(post.id)}
-                      className={`flex items-center gap-2 transition-colors text-gray-500 hover:text-red-600`}
-                    >
-                      <Heart className={`w-5 h-5`} />
-                      <span className="text-sm font-medium">{post.likes}</span>
-                    </button>
-                  </div> */}
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {(post.tags || ['ai/ml', 'Dev']).map((tag: string, idx: number) => (
+                      <span key={idx} className="text-indigo-600 text-sm hover:underline cursor-pointer">
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               ))
             )}
@@ -324,11 +337,26 @@ const DiscoverPage = () => {
           <div className="space-y-6">
             {/* AI Badge */}
             <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-4 text-white">
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles className="w-5 h-5" />
-                <h3 className="font-semibold">AI-Powered Recommendations</h3>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5" />
+                  <h3 className="font-semibold">AI-Powered Recommendations</h3>
+                </div>
+                {!recommendationsLoading && (
+                  <button
+                    onClick={handleRefreshRecommendations}
+                    className="text-white/80 hover:text-white transition-colors"
+                    title="Refresh recommendations"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  </button>
+                )}
               </div>
-              <p className="text-sm text-white/80">Personalized suggestions based on your skills and interests</p>
+              <p className="text-sm text-white/80">
+                {recommendationsLoading ? 'Analyzing your interests...' : 'Personalized suggestions based on your skills and interests'}
+              </p>
             </div>
 
             {/* Recommended Users */}
@@ -337,28 +365,47 @@ const DiscoverPage = () => {
                 <Users className="w-5 h-5 text-indigo-600" />
                 People to Connect With
               </h3>
-              <div className="space-y-4">
-                {recommendedUsers.map((user) => (
-                  <div key={user.id} className="flex items-start justify-between">
-                    <div className="flex gap-3">
-                      <img 
-                        src={user.avatar} 
-                        alt={user.name}
-                        className="w-10 h-10 rounded-full"
-                      />
-                      <div>
-                        <h4 className="font-medium text-gray-900 text-sm">{user.name}</h4>
-                        <p className="text-xs text-gray-600">{user.role}</p>
-                        <p className="text-xs text-indigo-600 mt-1">{user.matchReason}</p>
-                      </div>
-                    </div>
-                    <button className="px-3 py-1 bg-indigo-600 text-white rounded-lg text-xs font-medium hover:bg-indigo-700 transition-colors flex items-center gap-1">
-                      <MessageSquare className="w-3 h-3" />
-                      Chat
-                    </button>
+              {recommendationsLoading ? (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Finding perfect matches for you...
                   </div>
-                ))}
-              </div>
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="space-y-2">
+                      <LoadingSkeleton />
+                    </div>
+                  ))}
+                </div>
+              ) : recommendationsError ? (
+                <p className="text-sm text-red-500">Failed to load recommendations</p>
+              ) : recommendations?.recommendedUsers?.length > 0 ? (
+                <div className="space-y-4">
+                  {recommendations.recommendedUsers.map((user: any, idx: number) => (
+                    <div key={user.userId} className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <img 
+                          src={`https://avatar.iran.liara.run/public/${user.gender === 'Female' ? 'girl' : 'boy'}?${idx}`} 
+                          alt={user.fullName}
+                          className="w-10 h-10 rounded-full"
+                        />
+                        <div>
+                          <h4 className="font-medium text-gray-900 text-sm">{user.fullName}</h4>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => router.push(`/profile/${user.userId}`)}
+                        className="px-3 py-1 cursor-pointer bg-indigo-600 text-white rounded-lg text-xs font-medium hover:bg-indigo-700 transition-colors flex items-center gap-1"
+                      >
+                        <UserPlus className="w-3 h-3" />
+                        Connect
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">No recommendations available</p>
+              )}
             </div>
 
             {/* Recommended Projects */}
@@ -367,25 +414,43 @@ const DiscoverPage = () => {
                 <Rocket className="w-5 h-5 text-purple-600" />
                 Projects for You
               </h3>
-              <div className="space-y-4">
-                {recommendedProjects.map((project) => (
-                  <div key={project.id} className="border-b last:border-0 pb-4 last:pb-0">
-                    <div className="flex justify-between items-start mb-2">
-                      <h4 className="font-medium text-gray-900 text-sm">{project.title}</h4>
-                      <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                        {project.matchScore}% match
-                      </span>
+              {recommendationsLoading ? (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Discovering exciting projects...
+                  </div>
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="space-y-2 pb-4 border-b last:border-0">
+                      <LoadingSkeleton />
                     </div>
-                    <p className="text-xs text-gray-600 mb-2">{project.description}</p>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-500">{project.teamSize}</span>
-                      <button className="text-indigo-600 text-xs font-medium hover:text-indigo-700">
+                  ))}
+                </div>
+              ) : recommendationsError ? (
+                <p className="text-sm text-red-500">Failed to load projects</p>
+              ) : recommendations?.recommendedProjects?.length > 0 ? (
+                <div className="space-y-4">
+                  {recommendations.recommendedProjects.map((project: any) => (
+                    <div key={project.projectId} className="border-b last:border-0 pb-4 last:pb-0">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="font-medium text-gray-900 text-sm">{project.title}</h4>
+                        <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full capitalize">
+                          {project.category}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-600 mb-2">{project.description}</p>
+                      <button 
+                        onClick={() => router.push(`/projects`)}
+                        className="text-indigo-600 cursor-pointer text-xs font-medium hover:text-indigo-700"
+                      >
                         View Project →
                       </button>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">No projects available</p>
+              )}
             </div>
 
             {/* Upcoming Events */}
@@ -394,58 +459,63 @@ const DiscoverPage = () => {
                 <Calendar className="w-5 h-5 text-amber-600" />
                 Events to Join
               </h3>
-              <div className="space-y-3">
-                {upcomingEvents.map((event) => (
-                  <div key={event.id} className="border-b last:border-0 pb-3 last:pb-0">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h4 className="font-medium text-gray-900 text-sm">{event.name}</h4>
-                        <p className="text-xs text-gray-600">{event.date} • {event.type}</p>
-                      </div>
-                      {event.registrationOpen ? (
-                        <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                          {event.spotsLeft} spots
-                        </span>
-                      ) : (
-                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
-                          Full
-                        </span>
-                      )}
-                    </div>
+              {recommendationsLoading ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Loading upcoming events...
                   </div>
-                ))}
-              </div>
-              <Link href="/events"><button className="cursor-pointer w-full mt-4 text-indigo-600 text-sm font-medium hover:text-indigo-700 flex items-center justify-center gap-1">
-                Browse All Events
-                <ChevronRight className="w-4 h-4" />
-              </button></Link>
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="space-y-2 pb-3 border-b last:border-0">
+                      <LoadingSkeleton />
+                    </div>
+                  ))}
+                </div>
+              ) : recommendationsError ? (
+                <p className="text-sm text-red-500">Failed to load events</p>
+              ) : recommendations?.recommendedEvents?.length > 0 ? (
+                <div className="space-y-3">
+                  {recommendations.recommendedEvents.map((event: any) => (
+                    <div key={event.id} className="border-b last:border-0 pb-3 last:pb-0">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <h4 className="font-medium text-gray-900 text-sm">{event.eventName}</h4>
+                          <p className="text-xs text-gray-600">
+                            {formatEventDate(event.startDate, event.endDate)} • {event.eventType}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">{event.organizer}</p>
+                        </div>
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          event.status 
+                            ? 'bg-green-100 text-green-700' 
+                            : 'bg-gray-100 text-gray-600'
+                        }`}>
+                          {event.status ? 'Open' : 'Closed'}
+                        </span>
+                      </div>
+                      {/* {event.officialWebsite && (
+                        <a 
+                          href={event.officialWebsite} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-indigo-600 text-xs font-medium hover:text-indigo-700 inline-block mt-2"
+                        >
+                          Learn More →
+                        </a>
+                      )} */}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">No events available</p>
+              )}
+              <Link href="/events">
+                <button className="cursor-pointer w-full mt-4 text-indigo-600 text-sm font-medium hover:text-indigo-700 flex items-center justify-center gap-1">
+                  Browse All Events
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </Link>
             </div>
-
-            {/* Trending Topics */}
-            {/* <div className="bg-white rounded-2xl shadow-sm p-6">
-              <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-green-600" />
-                Trending Topics
-              </h3>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-indigo-600 hover:underline cursor-pointer">#AIProjects</span>
-                  <span className="text-xs text-gray-500">128 posts</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-indigo-600 hover:underline cursor-pointer">#WebDev</span>
-                  <span className="text-xs text-gray-500">94 posts</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-indigo-600 hover:underline cursor-pointer">#Hackathon2024</span>
-                  <span className="text-xs text-gray-500">76 posts</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-indigo-600 hover:underline cursor-pointer">#OpenSource</span>
-                  <span className="text-xs text-gray-500">61 posts</span>
-                </div>
-              </div>
-            </div> */}
           </div>
         </div>
       </div>

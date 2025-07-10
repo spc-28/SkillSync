@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Chat, GoogleGenAI } from '@google/genai';
 import { db } from 'src/config/firebase.config';
+import { recomendationsPrompt, tagsPrompt } from 'src/utils/helper';
 
 @Injectable()
 export class GeminiService {
@@ -72,6 +73,76 @@ export class GeminiService {
         catch (error) {
             console.error('Error fetching chats:', error);
             throw new Error('Failed to fetch chats');
+        }
+    }
+
+    async getGeminiRecomendations(userId: string) {
+        try {
+            const userSnap = await db.collection('users').doc(userId).get();
+            if (!userSnap.exists) {
+                throw new Error('User not found');
+            }
+            const currentUser = userSnap.data();
+
+            const usersSnap = await db.collection('users').get();
+            const allUsers = usersSnap.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+            }));
+
+            const projectsSnap = await db.collection('projects').get();
+            const allProjects = projectsSnap.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+            }));
+
+            const response = await this.genAI.models.generateContent({
+                model: "gemini-2.5-flash",
+                contents: [`You have to give result for this user ${JSON.stringify(currentUser)}`, JSON.stringify(allUsers), JSON.stringify(allProjects)],
+                config: {
+                    systemInstruction: recomendationsPrompt,
+                },
+            });
+
+            const snapshot = await db.collection("events").limit(3).get();
+            const events = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            const cleaned = String(response.text).replace(/^```json\s*|\s*```$/g, '');
+            const obj = JSON.parse(cleaned);
+
+            return { ...obj, recommendedEvents: [...events] };
+        }
+        catch (error: any) {
+            console.error('Error fetching recomendations:', error);
+            throw new Error('Failed to fetch recomendations');
+        }
+    }
+
+    async getTags(content: string) {
+        try {
+            const response = await this.genAI.models.generateContent({
+                model: "gemini-2.0-flash-001",
+                contents: [content],
+                config: {
+                    systemInstruction: tagsPrompt,
+                },
+            });
+
+            const cleaned = String(response.text).replace(/^```json\s*|\s*```$/g, '');
+            let obj = [];
+
+            try {
+                obj = JSON.parse(cleaned);
+            } 
+            catch (error) {
+                obj = [];
+            }
+
+            return obj;
+        }
+        catch (error: any) {
+            console.error('Error fetching tags:', error);
+            throw new Error('Failed to fetch tags');
         }
     }
 

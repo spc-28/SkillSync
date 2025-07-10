@@ -230,12 +230,12 @@ export default function Page() {
                         onChange={handleImageUpload}
                         className="hidden"
                     />
-                    <button
+                    {/* <button
                         onClick={() => fileInputRef.current && fileInputRef.current.click()}
                         className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                     >
                         <ImageIcon className="w-5 h-5 text-gray-600" />
-                    </button>
+                    </button> */}
                     <input
                         type="text"
                         value={message}
@@ -248,9 +248,9 @@ export default function Page() {
                     <button
                         onClick={handleSendMessage}
                         disabled={(!message.trim() && !imagePreview) || !selectedUser}
-                        className="p-2.5 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                        className="flex justify-center cursor-pointer items-center gap-3 p-2.5 px-3 bg-gradient-to-r w-24 from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
                     >
-                        <Send className="w-5 h-5" />
+                       <Send className="w-5 h-5" /> <span>Send</span>
                     </button>
                 </div>
             </div>

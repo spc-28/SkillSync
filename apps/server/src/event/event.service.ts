@@ -5,7 +5,7 @@ import { db } from 'src/config/firebase.config';
 @Injectable()
 export class EventService {
 
-  async createEvent(createEventDto: CreateEventDto): Promise<object> {
+  async createEvent(createEventDto: CreateEventDto, tags: string[]): Promise<object> {
     try {
 
       const startDate = new Date(createEventDto.startDate);
@@ -17,6 +17,7 @@ export class EventService {
 
       await db.collection('events').doc().set({
         ...createEventDto,
+        tags,
         status: false
       });
 

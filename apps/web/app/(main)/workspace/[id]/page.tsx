@@ -794,13 +794,13 @@ const ChatInterface: React.FC = () => {
             )}
 
             {status == "ongoing" && <div className="flex items-center space-x-2">
-              <button
+              {/* <button
                 onClick={() => teamFileInputRef.current?.click()}
                 className="p-2 cursor-pointer text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
                 title="Upload image"
               >
                 <Image className="w-5 h-5" />
-              </button>
+              </button> */}
               <input
                 ref={teamFileInputRef}
                 type="file"

@@ -55,12 +55,16 @@ export class AuthService {
 		const { email, fullName, institute, uid } = signUpDto;
 
 		const userDoc = await db.collection('users').doc(uid).get();
+		const data = userDoc.data();
 		try {
 			if (userDoc.exists) {
 				return {
 					message: 'User already created',
 					user: {
-						uid
+						uid,
+						fullName: data?.fullName,
+						gender: data?.gender
+
 					}
 				};
 			}
@@ -110,6 +114,7 @@ export class AuthService {
 					uid: user.uid,
 					email: user.email,
 					fullName: userData?.fullName,
+					gender: userData?.gender
 				},
 				token: customToken
 			};
