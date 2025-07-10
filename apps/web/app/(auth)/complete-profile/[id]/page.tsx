@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import { User, GraduationCap, BookOpen, FileText, Code, Briefcase, ChevronRight, Sparkles, CheckCircle } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import axios from 'axios';
+import { marked } from 'marked';
+import MarkdownRenderer from '../../../../utils/markdownRender';
 
 const OnboardingForm = () => {
 

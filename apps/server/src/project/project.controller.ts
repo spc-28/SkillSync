@@ -1,14 +1,19 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { ProjectService } from './project.service';
 import { CreateProjectDto } from './dto/create-project.dto';
+import { GeminiService } from 'src/gemini/gemini.service';
+import { getProjectSystemPrompt } from 'src/utils/helper';
 
 @Controller('project')
 export class ProjectController {
-  constructor(private readonly projectService: ProjectService) {}
+  constructor(private readonly projectService: ProjectService, private readonly geminiService: GeminiService) {}
 
    @Post()
-    create(@Body() createProjectDto: CreateProjectDto) {
-      return this.projectService.createProject(createProjectDto);
+    async create(@Body() createProjectDto: CreateProjectDto) {
+      const data =  await this.projectService.createProject(createProjectDto);
+      const systemInstruction = getProjectSystemPrompt(data.title, data.description)
+      this.geminiService.createChatInstance(data.id, systemInstruction);
+      return data;
     }
   
     @Get()

@@ -645,7 +645,7 @@ const WorkspacePage = () => {
                         <tr key={request.id} className="border-b hover:bg-gray-50">
                           <td className="py-4 px-4">
                             <div className="flex items-center gap-3">
-                              <span className="font-medium text-gray-900">{request.userName}</span>
+                              <span onClick={()=>router.push(`/profile/${request.userName}`)} className="font-medium text-gray-900 cursor-pointer py-1 px-1.5 border-1 rounded-lg">Visit Profile</span>
                             </div>
                           </td>
                           <td className="py-4 px-4 text-gray-600">

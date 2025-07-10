@@ -11,7 +11,8 @@ export class ProjectService {
                 .collection('projects')
                 .add({ ...createProjectDto, github: '', link: '' });
             return { id: docRef.id, ...createProjectDto };
-        } catch (error: any) {
+        } 
+        catch (error: any) {
             throw new Error(`Failed to create project: ${error.message}`);
         }
     }
@@ -202,7 +203,7 @@ export class ProjectService {
 
             const projectRef = db.collection('projects').doc(projectId);
             batch.update(projectRef, {
-                teamsIds: FieldValue.arrayUnion(userId)
+                teamIds: FieldValue.arrayUnion(userId)
             });
 
             await batch.commit();
