@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { ArrowLeft, Mail, User, School, Eye, EyeOff, ChevronDown, Lock, Sparkles, Users, Code } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { signInWithGoogle } from '../config/firebase';
+import { signInWithGoogle, signUpWithGoogle } from '../config/firebase';
 
 interface SignUpFormProps {
   formData: {
@@ -62,7 +62,7 @@ const SignUpForm: React.FC<SignUpFormProps> = ({ formData, colleges, showPasswor
         {/* Google Sign Up */}
         <button onClick={async ()=>{
           setGoogleLoading(true);  
-          await signInWithGoogle();
+          await signUpWithGoogle();
           setGoogleLoading(false);
           router.push('/discover');
         }}

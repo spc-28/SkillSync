@@ -19,5 +19,5 @@ export const useUserStore = create<UserStore>((set) => ({
     setUserName: (id) => set({ userName: id.split(" ")[0] }),
 
     userGender: '',
-    setUserGender: (id) => set({ userGender: id === 'male' ? 'boy' : 'girl' }),
+    setUserGender: (id) => set({ userGender: id === 'Male' ? 'boy' : 'girl' }),
 }))

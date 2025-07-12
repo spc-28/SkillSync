@@ -31,7 +31,7 @@ export default function Layout({
                         id: chat.id,
                         text: chat.message,
                         sender: chat.senderId === userId ? 'me' : chat.senderId,
-                        timestamp: new Date(chat.timeStamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                        timestamp: chat.timestamp,
                         type: 'text',
                     };
                     messagesMap[otherUserId].push(msg);
