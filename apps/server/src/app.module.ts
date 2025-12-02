@@ -10,9 +10,13 @@ import { WorkspaceModule } from './workspace/workspace.module';
 import { PostModule } from './post/post.module';
 import { ProfileModule } from './profile/profile.module';
 import { GeminiModule } from './gemini/gemini.module';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
-  imports: [AuthModule, ChatModule, SocketModule, EventModule, ProjectModule, WorkspaceModule, PostModule, ProfileModule, GeminiModule],
+  imports: [ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: '.env',  // Simple - looks in current working directory
+    }),AuthModule, ChatModule, SocketModule, EventModule, ProjectModule, WorkspaceModule, PostModule, ProfileModule, GeminiModule],
   controllers: [AppController],
   providers: [AppService],
 })

@@ -1,13 +1,20 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { db } from 'src/config/firebase.config';
+import { ConfigService } from '@nestjs/config';
+import { initializeFirebase } from 'src/config/firebase.config';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { FieldValue } from 'firebase-admin/firestore';
 
 @Injectable()
 export class ProjectService {
+    private readonly db;
+
+    constructor(private configService: ConfigService) {
+        this.db = initializeFirebase(this.configService);
+    }
+
     async createProject(createProjectDto: CreateProjectDto) {
         try {
-            const docRef = await db
+            const docRef = await this.db
                 .collection('projects')
                 .add({ ...createProjectDto, github: '', link: '' });
             return { id: docRef.id, ...createProjectDto };
@@ -19,12 +26,12 @@ export class ProjectService {
 
     async findAll() {
         try {
-            const snapshot = await db.collection('projects').get();
+            const snapshot = await this.db.collection('projects').get();
 
             const projects = await Promise.all(
                 snapshot.docs.map(async (doc) => {
                     const data = doc.data();
-                    const authorRef = db.collection('users').doc(data.author);
+                    const authorRef = this.db.collection('users').doc(data.author);
                     const authorSnap = await authorRef.get();
                     const authorData = authorSnap.data();
 
@@ -47,12 +54,12 @@ export class ProjectService {
 
     async workspaceProjects(id: string) {
         try {
-            const snapshot = await db.collection('projects').get();
+            const snapshot = await this.db.collection('projects').get();
 
             const projects = await Promise.all(
                 snapshot.docs.map(async (doc) => {
                     const data = doc.data();
-                    const authorRef = db.collection('users').doc(data.author);
+                    const authorRef = this.db.collection('users').doc(data.author);
                     const authorSnap = await authorRef.get();
                     const authorData = authorSnap.data();
 
@@ -93,7 +100,7 @@ export class ProjectService {
 
     async getAllTasks(id: string) {
         try {
-            const snapshot = await db
+            const snapshot = await this.db
                 .collection('tasks')
                 .where('userId', '==', id)
                 .get();
@@ -111,7 +118,7 @@ export class ProjectService {
 
     async updateTaskStatus(taskId: string) {
         try {
-            await db.collection('tasks').doc(taskId).update({
+            await this.db.collection('tasks').doc(taskId).update({
                 status: true,
             });
 
@@ -125,7 +132,7 @@ export class ProjectService {
 
     async updateProjectStatus(id: string, githubLink: string, liveLink: string) {
         try {
-            await db.collection('projects').doc(id).update({
+            await this.db.collection('projects').doc(id).update({
                 status: "completed",
                 github: githubLink,
                 link: liveLink || ""
@@ -151,7 +158,7 @@ export class ProjectService {
                 status: false
             };
 
-            await db.collection('requests').add(requestData);
+            await this.db.collection('requests').add(requestData);
 
             return {
                 success: true,
@@ -167,7 +174,7 @@ export class ProjectService {
 
     async getAllRequests(id: string) {
         try {
-            const snapshot = await db.collection('requests').where('authorId', '==', id).get();
+            const snapshot = await this.db.collection('requests').where('authorId', '==', id).get();
 
             const requests = snapshot.docs.map((doc) => ({
                 id: doc.id,
@@ -183,7 +190,7 @@ export class ProjectService {
 
     async acceptRequest(requestId: string) {
         try {
-            const requestDoc = await db.collection('requests').doc(requestId).get();
+            const requestDoc = await this.db.collection('requests').doc(requestId).get();
 
             if (!requestDoc.exists) {
                 throw new BadRequestException('Request not found');
@@ -193,15 +200,15 @@ export class ProjectService {
             //@ts-ignore
             const { userId, projectId } = requestData;
 
-            const batch = db.batch();
+            const batch = this.db.batch();
 
-            const requestRef = db.collection('requests').doc(requestId);
+            const requestRef = this.db.collection('requests').doc(requestId);
             batch.update(requestRef, {
                 status: true,
                 acceptedAt: new Date().toISOString()
             });
 
-            const projectRef = db.collection('projects').doc(projectId);
+            const projectRef = this.db.collection('projects').doc(projectId);
             batch.update(projectRef, {
                 teamIds: FieldValue.arrayUnion(userId)
             });
@@ -221,7 +228,7 @@ export class ProjectService {
 
     async deleteRequest(requestId: string) {
         try {
-            await db.collection('requests').doc(requestId).delete();
+            await this.db.collection('requests').doc(requestId).delete();
 
             return {
                 success: true,
@@ -238,7 +245,7 @@ export class ProjectService {
     async adduserToProject(id: string, data: { ids: string[] }) {
         try {
             
-            await db.collection('projects').doc(id).update({
+            await this.db.collection('projects').doc(id).update({
                 teamIds: FieldValue.arrayUnion(...data.ids)
             });
 

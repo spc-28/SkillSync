@@ -1,25 +1,31 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { db } from 'src/config/firebase.config';
+import { ConfigService } from '@nestjs/config';
+import { initializeFirebase } from 'src/config/firebase.config';
 
 @Injectable()
 export class WorkspaceService {
+    private readonly db;
+
+    constructor(private configService: ConfigService) {
+        this.db = initializeFirebase(this.configService);
+    }
 
     async workspaceInfo(id: string) {
         try {
 
-            const projectDoc = await db.collection("projects").doc(id).get();
+            const projectDoc = await this.db.collection("projects").doc(id).get();
             if (!projectDoc.exists) {
                 throw new Error("Project not found");
             }
 
             const projectData = projectDoc.data();
 
-            const authorDoc = await db.collection("users").doc(projectData?.author).get();
+            const authorDoc = await this.db.collection("users").doc(projectData?.author).get();
             const authorData = authorDoc.data();
 
             const teamMembers = await Promise.all(
                 (projectData?.teamIds || []).map(async (teamId: string) => {
-                    const memberDoc = await db.collection("users").doc(teamId).get();
+                    const memberDoc = await this.db.collection("users").doc(teamId).get();
                     const memberData = memberDoc.data();
                     return {
                         id: memberDoc.id,
@@ -29,7 +35,7 @@ export class WorkspaceService {
             );
 
 
-            const chatsSnapshot = await db.collection("roomChats")
+            const chatsSnapshot = await this.db.collection("roomChats")
                 .where("room", "==", id)
                 .orderBy("timestamp", "asc")
                 .get();
@@ -62,7 +68,7 @@ export class WorkspaceService {
 
     async createTask(data: { projectId: string; userId: string; task: string; timestamp: string;}) {
         try {
-            const docRef = db.collection('tasks').doc();
+            const docRef = this.db.collection('tasks').doc();
             const taskData = {
                 id: docRef.id,
                 ...data,

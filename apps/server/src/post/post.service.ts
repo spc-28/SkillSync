@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { CreatePostDto } from './dto/create-post.dto';
-import { db } from 'src/config/firebase.config';
+import { initializeFirebase } from 'src/config/firebase.config';
 import { FieldValue } from 'firebase-admin/firestore';
 import { Storage } from '@google-cloud/storage';
 import { v4 as uuidv4 } from 'uuid';
@@ -8,6 +9,11 @@ import * as path from 'path';
 
 @Injectable()
 export class PostService {
+    private readonly db;
+
+    constructor(private configService: ConfigService) {
+        this.db = initializeFirebase(this.configService);
+    }
 
     private storage = new Storage({
     keyFilename: 'keyfile.json', 
@@ -17,7 +23,7 @@ export class PostService {
   private bucket = this.storage.bucket(this.bucketName);
   async create(createPostDto: CreatePostDto, tags: string[]) {
     try {
-      await db.collection('posts').doc().set({
+      await this.db.collection('posts').doc().set({
         ...createPostDto,
         tags,
         likes: 0,
@@ -42,12 +48,12 @@ export class PostService {
 
   async findAll() {
     try {
-      const snapshot = await db.collection("posts").orderBy('timestamp', 'desc').get();
+      const snapshot = await this.db.collection("posts").orderBy('timestamp', 'desc').get();
 
       const posts = await Promise.all(
         snapshot.docs.map(async (doc: any) => {
           const data = doc.data();
-          const userDoc = await db.collection("users").doc(data.authorId).get();
+          const userDoc = await this.db.collection("users").doc(data.authorId).get();
           const userData = userDoc.data();
 
           return {
@@ -66,7 +72,7 @@ export class PostService {
 
   async addLike(id: string) {
     try {
-      await db.collection('posts').doc(id).update({
+      await this.db.collection('posts').doc(id).update({
         likes: FieldValue.increment(1)
       });
 

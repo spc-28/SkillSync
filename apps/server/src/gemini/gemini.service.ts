@@ -1,13 +1,20 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Chat, GoogleGenAI } from '@google/genai';
-import { db } from 'src/config/firebase.config';
+import { initializeFirebase } from 'src/config/firebase.config';
 import { recomendationsPrompt, tagsPrompt } from 'src/utils/helper';
 
 @Injectable()
 export class GeminiService {
-    private readonly genAI = new GoogleGenAI({
-        apiKey: process.env.GOOGLE_AI_API_KEY,
-    });
+    private readonly genAI: GoogleGenAI;
+    private readonly db;
+
+    constructor(private configService: ConfigService) {
+        this.genAI = new GoogleGenAI({
+            apiKey: this.configService.get<string>('GOOGLE_AI_API_KEY'),
+        });
+        this.db = initializeFirebase(this.configService);
+    }
 
     private chatSessions = new Map<string, Chat>();
 
@@ -40,13 +47,13 @@ export class GeminiService {
             const chat = this.getChat(sessionId);
             const res = await chat.sendMessage({ message });
 
-            await db.collection('geminiChats').doc().set({
+            await this.db.collection('geminiChats').doc().set({
                 projectId: sessionId,
                 message,
                 timestamp: new Date().toISOString()
             })
 
-            await db.collection('geminiChats').doc().set({
+            await this.db.collection('geminiChats').doc().set({
                 projectId: sessionId,
                 message: res.text,
                 timestamp: new Date().toISOString()
@@ -62,7 +69,7 @@ export class GeminiService {
 
     async getGeminiChats(projectId: string) {
         try {
-            const chatsSnapshot = await db.collection('geminiChats').where('projectId', '==', projectId).orderBy("timestamp", "asc").get();
+            const chatsSnapshot = await this.db.collection('geminiChats').where('projectId', '==', projectId).orderBy("timestamp", "asc").get();
 
             const chats = chatsSnapshot.docs.map(doc => ({
                 ...doc.data(),
@@ -78,19 +85,19 @@ export class GeminiService {
 
     async getGeminiRecomendations(userId: string) {
         try {
-            const userSnap = await db.collection('users').doc(userId).get();
+            const userSnap = await this.db.collection('users').doc(userId).get();
             if (!userSnap.exists) {
                 throw new Error('User not found');
             }
             const currentUser = userSnap.data();
 
-            const usersSnap = await db.collection('users').get();
+            const usersSnap = await this.db.collection('users').get();
             const allUsers = usersSnap.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data(),
             }));
 
-            const projectsSnap = await db.collection('projects').get();
+            const projectsSnap = await this.db.collection('projects').get();
             const allProjects = projectsSnap.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data(),
@@ -104,7 +111,7 @@ export class GeminiService {
                 },
             });
 
-            const snapshot = await db.collection("events").limit(3).get();
+            const snapshot = await this.db.collection("events").limit(3).get();
             const events = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
             const cleaned = String(response.text).replace(/^```json\s*|\s*```$/g, '');

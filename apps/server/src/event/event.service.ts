@@ -1,9 +1,15 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { CreateEventDto } from './dto/create-event.dto';
-import { db } from 'src/config/firebase.config';
+import { initializeFirebase } from 'src/config/firebase.config';
 
 @Injectable()
 export class EventService {
+  private readonly db;
+
+  constructor(private configService: ConfigService) {
+    this.db = initializeFirebase(this.configService);
+  }
 
   async createEvent(createEventDto: CreateEventDto, tags: string[]): Promise<object> {
     try {
@@ -15,7 +21,7 @@ export class EventService {
         throw new BadRequestException('End date must be after start date');
       }
 
-      await db.collection('events').doc().set({
+      await this.db.collection('events').doc().set({
         ...createEventDto,
         tags,
         status: false
@@ -38,7 +44,7 @@ export class EventService {
 
   async findAll() {
     try {
-      const snapshot = await db.collection("events").orderBy('endDate', 'asc').get();
+      const snapshot = await this.db.collection("events").orderBy('endDate', 'asc').get();
 
       const events: object[] = [];
       

@@ -1,5 +1,6 @@
 import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
-import { db } from 'src/config/firebase.config';
+import { ConfigService } from '@nestjs/config';
+import { initializeFirebase } from 'src/config/firebase.config';
 import { UpdateUserDto } from './dto/profile.dto';
 import { removeEmptyValues } from 'src/utils/helper';
 import { CertificationDTO, ContributionDTO, HackathonDTO, ProjectDTO } from './dto/profile-meta-dto';
@@ -7,10 +8,15 @@ import { FieldValue } from 'firebase-admin/firestore';
 
 @Injectable()
 export class ProfileService {
+    private readonly db;
+
+    constructor(private configService: ConfigService) {
+        this.db = initializeFirebase(this.configService);
+    }
 
     async getUserById(userId: string) {
         try {
-            const userRef = db.collection('users').doc(userId);
+            const userRef = this.db.collection('users').doc(userId);
             const userSnap = await userRef.get();
 
             if (!userSnap.exists) {
@@ -40,7 +46,7 @@ export class ProfileService {
 
     async updateUserDetails(userId: string, payload: UpdateUserDto) {
         try {
-            const userRef = db.collection('users').doc(userId);
+            const userRef = this.db.collection('users').doc(userId);
             const userSnap = await userRef.get();
             const data = userSnap.data();
             const content = removeEmptyValues(payload);
@@ -67,7 +73,7 @@ export class ProfileService {
 
     async addProject(userId: string, project: ProjectDTO) {
         try {
-            await db.collection('userMeta').doc(userId).update({
+            await this.db.collection('userMeta').doc(userId).update({
                 projects: FieldValue.arrayUnion({ ...project })
             });
             return { message: 'Project added successfully' };
@@ -79,7 +85,7 @@ export class ProfileService {
 
     async addContribution(userId: string, contribution: ContributionDTO) {
         try {
-            await db.collection('userMeta').doc(userId).update({
+            await this.db.collection('userMeta').doc(userId).update({
                 contributions: FieldValue.arrayUnion({ ...contribution })
             });
             return { message: 'Contribution added successfully' };
@@ -91,7 +97,7 @@ export class ProfileService {
 
     async addHackathon(userId: string, hackathon: HackathonDTO) {
         try {
-            await db.collection('userMeta').doc(userId).update({
+            await this.db.collection('userMeta').doc(userId).update({
                 hackathons: FieldValue.arrayUnion({ ...hackathon })
             });
             return { message: 'Hackathon added successfully' };
@@ -103,7 +109,7 @@ export class ProfileService {
 
     async addCertification(userId: string, certification: CertificationDTO) {
         try {
-            await db.collection('userMeta').doc(userId).update({
+            await this.db.collection('userMeta').doc(userId).update({
                 certifications: FieldValue.arrayUnion({ ...certification })
             });
             return { message: 'Certification added successfully' };
@@ -115,14 +121,14 @@ export class ProfileService {
 
     async getAllMeta(userId: string) {
         try {
-            const userRef = db.collection('users').doc(userId);
+            const userRef = this.db.collection('users').doc(userId);
             const userSnap = await userRef.get();
 
             if(!userSnap.exists) {
                 throw new NotFoundException(`User with ID ${userId} does not exist`);
             }
 
-            const docRef = await db.collection('userMeta').doc(userId).get();
+            const docRef = await this.db.collection('userMeta').doc(userId).get();
 
             return { ...docRef.data() };
         }

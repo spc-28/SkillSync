@@ -1,7 +1,8 @@
 import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../config/firebase.config';
+import { initializeFirebase } from '../config/firebase.config';
 import { SignUpDto } from './dto/sign-up.dto';
 import { SignInDto } from './dto/sign-in.dto';
 import { clientAuth } from '@repo/firebase-config'
@@ -10,6 +11,12 @@ import { GoogleSignUpDto } from './dto/google-sign-up.dto';
 
 @Injectable()
 export class AuthService {
+	private readonly db;
+
+	constructor(private configService: ConfigService) {
+		this.db = initializeFirebase(this.configService);
+	}
+
 	async signUp(signUpDto: SignUpDto) {
 		const { email, password, fullName, institute } = signUpDto;
 
@@ -17,7 +24,7 @@ export class AuthService {
 			const userCredential = await createUserWithEmailAndPassword(clientAuth, email, password);
 			const user = userCredential.user;
 
-			await db.collection('users').doc(user.uid).set({
+			await this.db.collection('users').doc(user.uid).set({
 				fullName,
 				email,
 				institute,
@@ -25,7 +32,7 @@ export class AuthService {
 				uid: user.uid
 			});
 
-			await db.collection('userMeta').doc(user.uid).set({
+			await this.db.collection('userMeta').doc(user.uid).set({
 				projects: [],
 				contributions: [],
 				hackathons: [],
@@ -54,7 +61,7 @@ export class AuthService {
 	async googleSignUp(signUpDto: GoogleSignUpDto) {
 		const { email, fullName, institute, uid } = signUpDto;
 
-		const userDoc = await db.collection('users').doc(uid).get();
+		const userDoc = await this.db.collection('users').doc(uid).get();
 		const data = userDoc.data();
 		try {
 			if (userDoc.exists) {
@@ -69,7 +76,7 @@ export class AuthService {
 				};
 			}
 
-			await db.collection('users').doc(uid).set({
+			await this.db.collection('users').doc(uid).set({
 				fullName,
 				email,
 				institute,
@@ -103,7 +110,7 @@ export class AuthService {
 			const userCredential = await signInWithEmailAndPassword(clientAuth, email, password);
 			const user = userCredential.user;
 
-			const userDoc = await db.collection('users').doc(user.uid).get();
+			const userDoc = await this.db.collection('users').doc(user.uid).get();
 			const userData = userDoc.data();
 
 			const customToken = await user.getIdToken();
