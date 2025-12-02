@@ -24,13 +24,57 @@ const DiscoverPage = () => {
   const [recommendationsError, setRecommendationsError] = useState<string | null>(null);
   
   const { userId } = useUserStore();
-    const userGender = useUserStore((state) => state.userGender);
-    const userName = useUserStore((state) => state.userName);
+  const userGender = useUserStore((state) => state.userGender);
+  const userName = useUserStore((state) => state.userName);
   const router = useRouter();
   
   const RECOMMENDATIONS_KEY = 'cached_recommendations';
   const RECOMMENDATIONS_TIMESTAMP_KEY = 'recommendations_timestamp';
   const CACHE_DURATION = 3 * 60 * 60 * 1000; // 3 hour
+
+  // Function to get initials from name
+  const getInitials = (name: string) => {
+    if (!name) return '??';
+    const parts = name.trim().split(' ').filter(Boolean);
+    if (parts.length === 0) return '??';
+    if (parts.length === 1) {
+      const first = parts[0]?.[0] ?? '';
+      const second = parts[0]?.[1] ?? '';
+      return (first + second).toUpperCase() || '??';
+    }
+    const firstInitial = parts[0]?.[0] ?? '';
+    const lastInitial = parts[parts.length - 1]?.[0] ?? '';
+    return (firstInitial + lastInitial).toUpperCase() || '??';
+  };
+
+  // Function to generate color based on name
+  const getColorFromName = (name: string) => {
+    if (!name) return 'bg-gray-500';
+    const colors = [
+      'bg-indigo-500',
+      'bg-purple-500',
+      'bg-pink-500',
+      'bg-blue-500',
+      'bg-teal-500',
+      'bg-emerald-500',
+      'bg-amber-500',
+      'bg-orange-500',
+      'bg-red-500',
+      'bg-cyan-500',
+      'bg-sky-500',
+      'bg-violet-500',
+      'bg-fuchsia-500',
+      'bg-rose-500',
+      'bg-lime-500'
+    ];
+    
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % colors.length;
+    return colors[index];
+  };
   
   const isCacheValid = () => {
     const timestamp = sessionStorage.getItem(RECOMMENDATIONS_TIMESTAMP_KEY);
@@ -221,11 +265,10 @@ const DiscoverPage = () => {
             {/* Create Post */}
             <div className="bg-white rounded-2xl shadow-sm p-6">
               <div className="flex gap-4">
-                <img 
-                  src={`https://avatar.iran.liara.run/public/${userGender}?username=${userName}`} 
-                  alt="Your avatar" 
-                  className="w-12 h-12 rounded-full"
-                />
+                {/* REPLACED: Profile photo with initials */}
+                <div className={`w-12 h-12 rounded-full ${getColorFromName(userName)} flex items-center justify-center text-white font-semibold text-lg shadow-sm`}>
+                  {getInitials(userName)}
+                </div>
                 <div className="flex-1">
                   <textarea
                     value={postContent}
@@ -293,11 +336,10 @@ const DiscoverPage = () => {
                 <div key={post.id} className="bg-white rounded-2xl shadow-sm p-6 hover:shadow-md transition-shadow">
                   <div className="flex justify-between items-start mb-4">
                     <div onClick={()=>router.push(`/profile/${post.authorId}`)} className="flex gap-3 items-center cursor-pointer">
-                      <img 
-                        src={`https://avatar.iran.liara.run/public/${idx + 1}`} 
-                        alt={post.authorName || 'User'}
-                        className="w-10 h-10 rounded-full"
-                      />
+                      {/* REPLACED: Profile photo with initials */}
+                      <div className={`w-10 h-10 rounded-full ${getColorFromName(post.authorName || 'User')} flex items-center justify-center text-white font-semibold text-sm shadow-sm`}>
+                        {getInitials(post.authorName || 'User')}
+                      </div>
                       <div>
                         <div className="flex items-center">
                           <h3 className="font-semibold text-gray-900" >{post.authorName || 'User'}</h3>
@@ -382,13 +424,12 @@ const DiscoverPage = () => {
               ) : recommendations?.recommendedUsers?.length > 0 ? (
                 <div className="space-y-4">
                   {recommendations.recommendedUsers.map((user: any, idx: number) => (
-                    <div key={user.userId} className="flex items-start justify-between">
+                    <div key={idx} className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
-                        <img 
-                          src={`https://avatar.iran.liara.run/public/${user.gender === 'Female' ? 'girl' : 'boy'}?${idx}`} 
-                          alt={user.fullName}
-                          className="w-10 h-10 rounded-full"
-                        />
+                        {/* REPLACED: Profile photo with initials */}
+                        <div className={`w-10 h-10 rounded-full ${getColorFromName(user.fullName)} flex items-center justify-center text-white font-semibold text-sm shadow-sm`}>
+                          {getInitials(user.fullName)}
+                        </div>
                         <div>
                           <h4 className="font-medium text-gray-900 text-sm">{user.fullName}</h4>
                         </div>

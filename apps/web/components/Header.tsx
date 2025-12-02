@@ -50,12 +50,8 @@ export default function Header() {
                 </button>
 
                 <div onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}  className="relative">
-                    <div className="size-[2.85rem] rounded-full cursor-pointer border-2 border-orange-400 hover:border-pink-500 transition-colors">
-                        <img
-								src={`https://avatar.iran.liara.run/public/${userGender}?username=${userName}`}
-								alt="Profile"
-								className="w-full h-full object-cover"
-							/>
+                    <div className="size-[2.85rem] rounded-full flex items-center justify-center text-2xl text-white cursor-pointer border-2 border-orange-400 hover:border-pink-500 bg-gradient-to-r from-orange-400 via-orange-400 to-pink-400 ">
+                        {userName[0] || '?'}
                     </div>
                     {hover && <div className="absolute right-0 w-36 bg-white border border-gray-300 rounded-lg shadow-lg  pointer-events-auto transition-opacity duration-200 z-50 flex flex-col">
                         <button className="cursor-pointer block text-left px-4 py-2 text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none rounded-t-lg" tabIndex={0} onClick={() => router.push(`/profile/${localStorage.getItem('userId')}`)}>Profile</button>

@@ -1,6 +1,6 @@
 'use client'
 import React, { useState } from 'react';
-import { ArrowLeft, Mail, Lock, Eye, EyeOff, Sparkles, Users, Code } from 'lucide-react';
+import { ArrowLeft, Mail, Lock, Eye, EyeOff, Sparkles, Users, Code, ChevronDown, Copy, Check, Info } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { signInWithGoogle } from '../config/firebase';
 
@@ -38,6 +38,20 @@ const Logo = () => (
 const SignInForm: React.FC<SignInFormProps> = ({ formData, showPassword, setShowPassword, handleInputChange, handleSubmit, loading }) => {
   const router = useRouter();
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [showDemoCredentials, setShowDemoCredentials] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  const demoCredentials = {
+    email: 'aarav.mehta@example.com',
+    password: 'Test@123'
+  };
+
+  const handleCopy = (field: 'email' | 'password') => {
+    navigator.clipboard.writeText(demoCredentials[field]);
+    setCopiedField(field);
+    setTimeout(() => setCopiedField(null), 2000);
+  };
+
   return (
     <div className="min-h-screen flex">
       {/* Left Panel - Feature Showcase */}
@@ -96,6 +110,63 @@ const SignInForm: React.FC<SignInFormProps> = ({ formData, showPassword, setShow
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome back</h1>
             <p className="text-gray-600">Sign in to continue to your projects</p>
+          </div>
+
+          {/* Demo Credentials Dropdown */}
+          <div className="mb-6">
+            <button
+              onClick={() => setShowDemoCredentials(!showDemoCredentials)}
+              className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl hover:from-indigo-100 hover:to-purple-100 transition-all group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-white rounded-lg shadow-sm">
+                  <Info className="w-5 h-5 text-indigo-600" />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-semibold text-gray-900">Demo Account Available</p>
+                  <p className="text-xs text-gray-600">Click to reveal test credentials</p>
+                </div>
+              </div>
+              <ChevronDown className={`w-5 h-5 text-gray-500 transition-transform ${showDemoCredentials ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showDemoCredentials && (
+              <div className="mt-3 p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-3 animate-in slide-in-from-top-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <p className="text-xs font-medium text-gray-500 mb-1">Email</p>
+                    <p className="text-sm font-mono text-gray-800">{demoCredentials.email}</p>
+                  </div>
+                  <button
+                    onClick={() => handleCopy('email')}
+                    className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+                  >
+                    {copiedField === 'email' ? (
+                      <Check className="w-4 h-4 text-green-600" />
+                    ) : (
+                      <Copy className="w-4 h-4 text-gray-500" />
+                    )}
+                  </button>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <p className="text-xs font-medium text-gray-500 mb-1">Password</p>
+                    <p className="text-sm font-mono text-gray-800">{demoCredentials.password}</p>
+                  </div>
+                  <button
+                    onClick={() => handleCopy('password')}
+                    className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+                  >
+                    {copiedField === 'password' ? (
+                      <Check className="w-4 h-4 text-green-600" />
+                    ) : (
+                      <Copy className="w-4 h-4 text-gray-500" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Google Sign In */}

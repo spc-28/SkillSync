@@ -82,18 +82,8 @@ const Portfolio = () => {
 					{/* Left Column - Profile Photo & Basic Info */}
 					<div className="flex flex-col items-center lg:items-start">
 						{/* Profile Photo */}
-						<div className="w-48 h-48 rounded-full overflow-hidden flex-shrink-0 ring-4 ring-purple-100">
-							{userId==id? <img
-								src={`https://avatar.iran.liara.run/public/${userGender}?username=${userName}`}
-								alt="Profile"
-								className="w-full h-full object-cover"
-							/>:
-							<img
-								src={`https://avatar.iran.liara.run/public/`}
-								alt="Profile"
-								className="w-full h-full object-cover"
-							/>
-							}
+						<div className="w-48 h-48 rounded-full flex items-center justify-center overflow-hidden text-gray-600/85 text-[5.5rem] flex-shrink-0 ring-4 ring-purple-100 bg-gradient-to-r from-indigo-100 via-purple-100 to-pink-100" >
+							{profile.fullName[0] || '?'}
 						</div>
 
 						{/* Profile Info */}
